@@ -110,8 +110,6 @@ The application will be available at `http://localhost:5173`
 - ✅ Project structure setup
 - ✅ TypeScript configuration
 - ✅ Basic Express server
-- 🔄 Authentication system (in progress)
-- 🔄 Role-based access control (in progress)
 
 ### Phase 2 (Planned)
 - POI file management (CRUD)
@@ -154,21 +152,7 @@ The system uses PostgreSQL with the following main entities:
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 
-## 📝 Development Status
 
-**Current Phase:** Phase 1 - Foundation & Core Infrastructure
-
-See [task.md](../brain/372286d7-a7c7-413e-81b5-a3a05ae6dbff/task.md) for detailed progress tracking.
-
-## 📄 License
-
-ISC
-
-## 👥 Team
-
-Internal development project
-
----
 
 **Project Start Date:** February 15, 2026  
 **Estimated Completion:** August 2026 (6 months)
