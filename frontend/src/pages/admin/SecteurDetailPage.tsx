@@ -6,26 +6,59 @@ import suiviEtudeService from '../../services/suivi-etude.service';
 import type { DossierEtude, ColumnConfig } from '../../services/dossier-etude.service';
 import './SecteurDetailPage.css';
 
+// 🔗 POI SharePoint link — Replace with your SharePoint base URL
+// The POI value will be appended to this URL
+const POI_BASE_URL = 'https://your-sharepoint-site.sharepoint.com/sites/poi/';
+
+function isPoiColumn(col: ColumnConfig): boolean {
+    return col.key === 'POI' || col.label.toUpperCase() === 'POI';
+}
+
 function formatDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '-';
     try {
-        return new Date(dateStr).toLocaleDateString('fr-FR');
+        // If already in DD/MM/YYYY format, return as-is
+        const frMatch = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (frMatch) return dateStr as string;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return String(dateStr);
+        return d.toLocaleDateString('fr-FR');
     } catch {
-        return '-';
+        return String(dateStr) || '-';
     }
 }
 
 function toInputDate(dateStr: string | null | undefined): string {
     if (!dateStr) return '';
     try {
-        return new Date(dateStr).toISOString().split('T')[0];
+        // Handle DD/MM/YYYY format
+        const frMatch = String(dateStr).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (frMatch) {
+            const [, day, month, year] = frMatch;
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+        }
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        return d.toISOString().split('T')[0];
     } catch {
         return '';
     }
 }
 
+// Resolve data value: try col.key first, then col.label, then case-insensitive label match
+function getDataValue(data: Record<string, any>, col: ColumnConfig): any {
+    if (data[col.key] !== undefined) return data[col.key];
+    if (data[col.label] !== undefined) return data[col.label];
+    // Case-insensitive label match
+    const labelLower = col.label.toLowerCase();
+    for (const key of Object.keys(data)) {
+        if (key.toLowerCase() === labelLower) return data[key];
+    }
+    return undefined;
+}
+
 function getCellValue(data: Record<string, any>, col: ColumnConfig): string {
-    const val = data[col.key];
+    const val = getDataValue(data, col);
     if (val === null || val === undefined || val === '') return '-';
     if (col.type === 'date') return formatDate(val);
     if (typeof val === 'string' && val.length > 35) return val.substring(0, 35) + '...';
@@ -83,7 +116,7 @@ const ETAT_COLORS: Record<string, { bg: string; color: string }> = {
 function findEtatColor(data: Record<string, any>, columns: ColumnConfig[]): { bg: string; color: string } | null {
     const etatCol = columns.find(c => isEtatColumn(c));
     if (!etatCol) return null;
-    const val = data[etatCol.key];
+    const val = getDataValue(data, etatCol);
     if (!val) return null;
     const lower = String(val).toLowerCase().trim();
     if (ETAT_COLORS[lower]) return ETAT_COLORS[lower];
@@ -94,13 +127,14 @@ function findEtatColor(data: Record<string, any>, columns: ColumnConfig[]): { bg
 }
 
 // Cell style: ETAT gets badge, DATE gets ETAT background color
-function getCellStyle(col: ColumnConfig, val: any, data: Record<string, any>, columns: ColumnConfig[]): React.CSSProperties {
-    if (val === null || val === undefined || val === '' || val === '-') {
+function getCellStyle(col: ColumnConfig, _val: any, data: Record<string, any>, columns: ColumnConfig[]): React.CSSProperties {
+    const resolvedVal = getDataValue(data, col);
+    if (resolvedVal === null || resolvedVal === undefined || resolvedVal === '' || resolvedVal === '-') {
         return { color: '#9e9e9e' };
     }
     // ETAT column — colored badge
-    if (isEtatColumn(col)) {
-        const lower = String(val).toLowerCase().trim();
+    if (isEtatColumn(col) && resolvedVal) {
+        const lower = String(resolvedVal).toLowerCase().trim();
         const match = ETAT_COLORS[lower] || Object.values(ETAT_COLORS).find((_, i) =>
             lower.includes(Object.keys(ETAT_COLORS)[i])
         );
@@ -159,6 +193,52 @@ const SecteurDetailPage: React.FC = () => {
     const [editColumns, setEditColumns] = useState<ColumnConfig[]>([]);
     const [savingColumns, setSavingColumns] = useState(false);
 
+    // Sorting
+    const [sortKey, setSortKey] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+    const handleSort = (col: ColumnConfig) => {
+        const key = col.key;
+        if (sortKey === key) {
+            setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir('asc');
+        }
+    };
+
+    // Parse DD/MM/YYYY to sortable timestamp
+    const parseDateValue = (val: any): number => {
+        if (!val) return 0;
+        const str = String(val);
+        const frMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (frMatch) {
+            const [, d, m, y] = frMatch;
+            return new Date(Number(y), Number(m) - 1, Number(d)).getTime();
+        }
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
+    const sortedDossiers = React.useMemo(() => {
+        if (!sortKey) return dossiers;
+        const col = columns.find(c => c.key === sortKey);
+        if (!col) return dossiers;
+        return [...dossiers].sort((a, b) => {
+            const valA = getDataValue(a.data, col);
+            const valB = getDataValue(b.data, col);
+            let cmp = 0;
+            if (col.type === 'date') {
+                cmp = parseDateValue(valA) - parseDateValue(valB);
+            } else if (col.type === 'number') {
+                cmp = (Number(valA) || 0) - (Number(valB) || 0);
+            } else {
+                cmp = String(valA || '').localeCompare(String(valB || ''), 'fr');
+            }
+            return sortDir === 'asc' ? cmp : -cmp;
+        });
+    }, [dossiers, sortKey, sortDir, columns]);
+
     // Fetch sector info to get the sector ID
     const fetchSectorId = useCallback(async () => {
         try {
@@ -210,7 +290,7 @@ const SecteurDetailPage: React.FC = () => {
         setEditingDossier(dossier);
         const data: Record<string, string> = {};
         columns.forEach((c) => {
-            const val = dossier.data[c.key];
+            const val = getDataValue(dossier.data, c);
             if (c.type === 'date') {
                 data[c.key] = toInputDate(val);
             } else {
@@ -405,7 +485,14 @@ const SecteurDetailPage: React.FC = () => {
                         <thead>
                             <tr>
                                 {columns.map((col) => (
-                                    <th key={col.key}>{col.label.toUpperCase()}</th>
+                                    <th
+                                        key={col.key}
+                                        onClick={() => handleSort(col)}
+                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                    >
+                                        {col.label.toUpperCase()}
+                                        {sortKey === col.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                                    </th>
                                 ))}
                                 {canEdit && <th>ACTIONS</th>}
                             </tr>
@@ -418,13 +505,24 @@ const SecteurDetailPage: React.FC = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                dossiers.map((d) => (
+                                sortedDossiers.map((d) => (
                                     <tr key={d.id}>
                                         {columns.map((col) => (
-                                            <td key={col.key} title={String(d.data[col.key] || '')}>
-                                                <span style={getCellStyle(col, d.data[col.key], d.data, columns)}>
-                                                    {getCellValue(d.data, col)}
-                                                </span>
+                                            <td key={col.key} title={String(getDataValue(d.data, col) || '')}>
+                                                {isPoiColumn(col) && getDataValue(d.data, col) ? (
+                                                    <a
+                                                        href={`${POI_BASE_URL}${getDataValue(d.data, col)}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="poi-link"
+                                                    >
+                                                        🔗 {getCellValue(d.data, col)}
+                                                    </a>
+                                                ) : (
+                                                    <span style={getCellStyle(col, getDataValue(d.data, col), d.data, columns)}>
+                                                        {getCellValue(d.data, col)}
+                                                    </span>
+                                                )}
                                             </td>
                                         ))}
                                         {canEdit && (
