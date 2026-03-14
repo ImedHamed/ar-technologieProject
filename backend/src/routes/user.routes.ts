@@ -32,4 +32,11 @@ router.post('/', authenticate, UserController.createUser);
  */
 router.put('/:id/permissions', authenticate, UserController.updatePermissions);
 
+/**
+ * @route   DELETE /api/v1/users/:id
+ * @desc    Delete a user (admin only)
+ * @access  Private (Admin)
+ */
+router.delete('/:id', authenticate, UserController.deleteUser);
+
 export default router;

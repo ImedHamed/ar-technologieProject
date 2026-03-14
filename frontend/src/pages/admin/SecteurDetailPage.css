@@ -1,14 +1,16 @@
 /* ============================================
-   Secteur Detail Page - Same Design as VUE GLOBAL
+   Secteur Detail — Creative Tim Style
    ============================================ */
 
 .secteur-detail-page {
     padding: 1.5rem 2rem;
     max-width: 100%;
     overflow-x: auto;
+    background: #f4f5f7;
+    min-height: 100vh;
 }
 
-/* Header - matching admin-dashboard-header */
+/* Header */
 .secteur-detail-header {
     display: flex;
     justify-content: space-between;
@@ -17,121 +19,145 @@
 }
 
 .secteur-detail-header .header-left h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1a1a2e;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #2c2c2c;
     margin: 0;
 }
 
 .secteur-detail-header .header-left .subtitle {
-    color: #6b7280;
-    margin: 0.25rem 0 0;
-    font-size: 0.875rem;
+    color: #999;
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
 }
 
 .header-left .back-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    color: #1b5e20;
+    gap: 0.25rem;
+    color: #fb8c00;
     font-size: 0.8rem;
-    font-weight: 600;
-    text-decoration: none;
-    margin-bottom: 0.5rem;
+    font-weight: 700;
     cursor: pointer;
+    margin-bottom: 0.4rem;
     transition: color 0.2s;
 }
 
 .header-left .back-link:hover {
-    color: #2e7d32;
+    color: #e65100;
 }
 
 .header-right {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
 }
 
 .btn-add-dossier {
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0.6rem 1.2rem;
-    background: #1b5e20;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    background: #4caf50;
     color: #fff;
     border: none;
     border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-size: 0.8rem;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .btn-add-dossier:hover {
-    background: #2e7d32;
+    opacity: 0.85;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .btn-manage-cols {
-    padding: 0.6rem 1.2rem;
-    background: #0d47a1;
-    color: #fff;
-    border: none;
+    padding: 0.5rem 1rem;
+    background: #fff;
+    color: #666;
+    border: 1.5px solid #ddd;
     border-radius: 6px;
-    font-weight: 600;
-    font-size: 0.85rem;
+    font-weight: 700;
+    font-size: 0.8rem;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .btn-manage-cols:hover {
-    background: #1565c0;
+    border-color: #fb8c00;
+    color: #fb8c00;
 }
 
-/* ---- Stats Cards - matching stat-highlight ---- */
+/* ---- Stats ---- */
 .secteur-stats-bar {
     display: flex;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
 }
 
 .secteur-stat-card {
     flex: 1;
     min-width: 200px;
-    padding: 1.2rem 1.5rem;
+    background: #fff;
     border-radius: 10px;
+    padding: 1rem 1.2rem 1rem 5.5rem;
     display: flex;
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 0.15rem;
+    position: relative;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+    min-height: 85px;
 }
 
-.secteur-stat-card.primary {
-    background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
-    color: #fff;
+.secteur-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
 }
 
-.secteur-stat-card.info {
-    background: linear-gradient(135deg, #0d47a1 0%, #1565c0 100%);
-    color: #fff;
+.secteur-stat-card::before {
+    content: '';
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.secteur-stat-card.primary::before {
+    background: linear-gradient(135deg, #fb8c00, #ffa726);
+}
+
+.secteur-stat-card.info::before {
+    background: linear-gradient(135deg, #00acc1, #26c6da);
 }
 
 .secteur-stat-card .stat-card-label {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    opacity: 0.9;
+    color: #999;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
+    text-align: right;
 }
 
 .secteur-stat-card .stat-card-value {
-    font-size: 2rem;
+    font-size: 1.7rem;
     font-weight: 800;
     line-height: 1;
+    color: #2c2c2c;
+    text-align: right;
 }
 
 /* ---- Filters ---- */
 .secteur-filters {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.6rem;
     margin-bottom: 1rem;
     flex-wrap: wrap;
     align-items: center;
@@ -139,119 +165,55 @@
 
 .filter-input {
     padding: 0.5rem 0.8rem;
-    border: 1px solid #d1d5db;
+    border: 1.5px solid #ddd;
     border-radius: 6px;
     font-size: 0.85rem;
     font-weight: 600;
-    min-width: 250px;
+    min-width: 260px;
+    background: #fff;
+    color: #2c2c2c;
     transition: border-color 0.2s;
 }
 
 .filter-input:focus {
     outline: none;
-    border-color: #1b5e20;
-    box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.1);
+    border-color: #fb8c00;
+    box-shadow: 0 0 0 3px rgba(251, 140, 0, 0.08);
 }
 
-/* ---- Section Title ---- */
-.secteur-table-section h2 {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: #1b5e20;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.4rem;
-    border-bottom: 2px solid #1b5e20;
+.filter-input::placeholder {
+    color: #bbb;
 }
 
-/* ---- Table - matching excel-table ---- */
-.dossier-table-wrapper {
-    overflow-x: auto;
-    border: 1px solid #2e7d32;
-    border-radius: 4px;
-    margin-bottom: 1rem;
-}
-
-.dossier-detail-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.78rem;
-    white-space: nowrap;
-    min-width: 1200px;
-}
-
-.dossier-detail-table thead th {
-    background: #1b5e20;
-    color: #fff;
-    font-weight: 700;
-    text-align: center;
-    padding: 0.5rem 0.4rem;
-    border: 1px solid #145217;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-}
-
-.dossier-detail-table tbody td {
-    text-align: center;
-    padding: 0.35rem 0.4rem;
-    border: 1px solid #c8e6c9;
-    font-weight: 600;
-    font-size: 0.78rem;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.dossier-detail-table tbody tr:nth-child(even) {
-    background: #f1f8e9;
-}
-
-.dossier-detail-table tbody tr:hover {
-    background: #dcedc8;
-}
-
-/* First column (Code OEIE) - matching sector name style */
-.dossier-detail-table tbody td:first-child {
-    text-align: left;
-    font-weight: 700;
-    color: #1b5e20;
-    background: #e8f5e9;
-    padding-left: 0.6rem;
-    min-width: 100px;
-}
-
-/* ---- Row Actions - matching btn-row-action ---- */
-.dossier-row-actions {
+/* ---- Row Actions ---- */
+.row-actions {
     display: flex;
     gap: 0.3rem;
     justify-content: center;
 }
 
-.btn-dossier-action {
-    padding: 0.2rem 0.5rem;
+.btn-row-action {
+    padding: 0.25rem 0.5rem;
     border: none;
-    border-radius: 3px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    transition: opacity 0.2s;
+    transition: all 0.15s;
 }
 
-.btn-dossier-action:hover {
+.btn-row-action:hover {
     opacity: 0.8;
 }
 
-.btn-dossier-edit {
-    background: #1565c0;
-    color: #fff;
+.btn-row-edit {
+    background: #e3f2fd;
+    color: #1e88e5;
 }
 
-.btn-dossier-delete {
-    background: #c62828;
-    color: #fff;
+.btn-row-delete {
+    background: #ffebee;
+    color: #e53935;
 }
 
 /* ---- Pagination ---- */
@@ -259,55 +221,57 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 0;
+    padding: 0.6rem 0;
     font-size: 0.82rem;
-    color: #6b7280;
+    color: #999;
 }
 
 .pagination-info {
-    font-weight: 500;
+    font-weight: 600;
 }
 
 .pagination-buttons {
     display: flex;
-    gap: 0.3rem;
+    gap: 0.25rem;
 }
 
 .btn-page {
-    padding: 0.35rem 0.7rem;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
+    padding: 0.3rem 0.65rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
     background: #fff;
+    color: #555;
     cursor: pointer;
     font-size: 0.78rem;
     font-weight: 600;
-    transition: all 0.2s;
+    transition: all 0.15s;
 }
 
 .btn-page:hover:not(:disabled) {
-    background: #e8f5e9;
-    border-color: #1b5e20;
+    border-color: #fb8c00;
+    color: #fb8c00;
 }
 
 .btn-page:disabled {
-    opacity: 0.4;
+    opacity: 0.3;
     cursor: not-allowed;
 }
 
 .btn-page.active {
-    background: #1b5e20;
+    background: #fb8c00;
     color: #fff;
-    border-color: #1b5e20;
+    border-color: #fb8c00;
 }
 
-/* ---- Modal - matching se-modal ---- */
+/* ---- Modal ---- */
 .dos-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -316,13 +280,16 @@
 
 .dos-modal-content {
     background: #fff;
-    border-radius: 12px;
-    padding: 2rem;
-    width: 90%;
-    max-width: 700px;
-    max-height: 85vh;
-    overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
+    width: 95vw;
+    max-width: 95vw;
+    max-height: 95vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
 }
 
 .dos-modal-content.col-modal {
@@ -332,12 +299,11 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    border-radius: 14px;
     padding: 1.5rem 2rem;
 }
 
 .dos-modal-content.col-modal h3 {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     margin: 0 0 0.25rem;
     flex-shrink: 0;
 }
@@ -358,24 +324,39 @@
 }
 
 .dos-modal-content h3 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 700;
-    color: #1b5e20;
-    margin: 0 0 1.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #e8f5e9;
+    color: #2c2c2c;
+    margin: 0 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid #f2f2f2;
+    flex-shrink: 0;
+}
+
+.dos-modal-content form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .dos-form-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 0.75rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem 1.2rem;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    align-content: start;
+    min-width: 0;
+    padding: 0.5rem 0;
 }
 
 .dos-form-group {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    min-width: 0;
 }
 
 .dos-form-group.full-width {
@@ -383,51 +364,59 @@
 }
 
 .dos-form-group label {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    color: #374151;
+    color: #888;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .dos-form-group input,
 .dos-form-group textarea,
 .dos-form-group select {
-    padding: 0.5rem 0.6rem;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
     font-size: 0.85rem;
     font-weight: 600;
-    transition: border-color 0.2s;
+    background: #fafafa;
+    color: #2c2c2c;
+    transition: all 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
 }
 
 .dos-form-group input:focus,
 .dos-form-group textarea:focus,
 .dos-form-group select:focus {
     outline: none;
-    border-color: #1b5e20;
-    box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.1);
+    border-color: #fb8c00;
+    box-shadow: 0 0 0 3px rgba(251, 140, 0, 0.08);
 }
 
 .dos-form-group textarea {
-    min-height: 60px;
+    min-height: 50px;
     resize: vertical;
 }
 
 .dos-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 0.75rem;
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e5e7eb;
+    gap: 0.6rem;
+    margin-top: 1.25rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f2f2f2;
 }
 
 .dos-btn-cancel {
-    padding: 0.6rem 1.2rem;
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #d1d5db;
+    padding: 0.5rem 1.1rem;
+    background: #f5f5f5;
+    color: #666;
+    border: 1px solid #ddd;
     border-radius: 6px;
     font-weight: 600;
     cursor: pointer;
@@ -435,34 +424,34 @@
 }
 
 .dos-btn-cancel:hover {
-    background: #e5e7eb;
+    background: #eee;
 }
 
 .dos-btn-save {
-    padding: 0.6rem 1.5rem;
-    background: #1b5e20;
+    padding: 0.5rem 1.3rem;
+    background: linear-gradient(135deg, #fb8c00, #f57c00);
     color: #fff;
     border: none;
     border-radius: 6px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
 }
 
 .dos-btn-save:hover {
-    background: #2e7d32;
+    box-shadow: 0 4px 12px rgba(251, 140, 0, 0.3);
 }
 
 .dos-btn-save:disabled,
 .dos-btn-cancel:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* ─── Column Management Modal ─────────────────────────── */
+/* ─── Column Management ─────────────────────────── */
 .col-hint {
     font-size: 0.82rem;
-    color: #6b7280;
+    color: #999;
     margin: -0.5rem 0 1rem;
 }
 
@@ -481,16 +470,14 @@
     align-items: center;
     gap: 0.4rem;
     padding: 0.4rem 0.5rem;
-    border: 1px solid #e5e7eb;
+    border: 1.5px solid #eee;
     border-radius: 8px;
-    background: #f9fafb;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fff;
+    transition: border-color 0.2s;
 }
 
 .col-item:hover {
-    border-color: #1b5e20;
-    background: #f1f8e9;
-    box-shadow: 0 1px 4px rgba(27, 94, 32, 0.08);
+    border-color: #fb8c00;
 }
 
 .col-order-btns {
@@ -502,9 +489,10 @@
 
 .col-move-btn {
     padding: 0.05rem 0.25rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid #ddd;
     border-radius: 3px;
-    background: #fff;
+    background: #fafafa;
+    color: #999;
     cursor: pointer;
     font-size: 0.55rem;
     line-height: 1;
@@ -512,7 +500,8 @@
 }
 
 .col-move-btn:hover:not(:disabled) {
-    background: #e8f5e9;
+    background: #fff3e0;
+    color: #fb8c00;
 }
 
 .col-move-btn:disabled {
@@ -531,24 +520,27 @@
 .col-label-input {
     flex: 1;
     padding: 0.3rem 0.4rem;
-    border: 1px solid #d1d5db;
+    border: 1.5px solid #ddd;
     border-radius: 5px;
     font-size: 0.78rem;
     font-weight: 600;
     min-width: 80px;
+    background: #fff;
+    color: #2c2c2c;
 }
 
 .col-label-input:focus {
     outline: none;
-    border-color: #1b5e20;
+    border-color: #fb8c00;
 }
 
 .col-type-select {
     padding: 0.3rem 0.35rem;
-    border: 1px solid #d1d5db;
+    border: 1.5px solid #ddd;
     border-radius: 5px;
     font-size: 0.75rem;
     background: #fff;
+    color: #2c2c2c;
     min-width: 75px;
     flex-shrink: 0;
 }
@@ -559,7 +551,7 @@
     gap: 0.2rem;
     font-size: 0.68rem;
     font-weight: 600;
-    color: #6b7280;
+    color: #999;
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
@@ -568,14 +560,14 @@
 .col-required-label input[type='checkbox'] {
     width: 13px;
     height: 13px;
-    accent-color: #1b5e20;
+    accent-color: #fb8c00;
 }
 
 .col-remove-btn {
     padding: 0.2rem 0.35rem;
-    border: 1px solid #fecaca;
-    border-radius: 4px;
-    background: #fef2f2;
+    border: 1px solid #ffcdd2;
+    border-radius: 5px;
+    background: #fff5f5;
     cursor: pointer;
     font-size: 0.68rem;
     transition: all 0.2s;
@@ -583,17 +575,17 @@
 }
 
 .col-remove-btn:hover {
-    background: #fee2e2;
-    border-color: #ef4444;
+    background: #ffebee;
+    border-color: #ef9a9a;
 }
 
 .col-add-btn {
     width: 100%;
     padding: 0.5rem;
-    border: 2px dashed #c8e6c9;
+    border: 2px dashed #ddd;
     border-radius: 8px;
     background: transparent;
-    color: #1b5e20;
+    color: #fb8c00;
     font-weight: 700;
     font-size: 0.82rem;
     cursor: pointer;
@@ -601,20 +593,17 @@
 }
 
 .col-add-btn:hover {
-    background: #e8f5e9;
-    border-color: #1b5e20;
+    background: #fff8e1;
+    border-color: #fb8c00;
 }
 
-/* ─── POI Link ────────────────────────────────────────── */
+/* ─── POI Link ── */
 .poi-link {
-    color: #0d47a1;
+    color: #1e88e5;
     text-decoration: none;
     font-weight: 700;
     font-size: 0.78rem;
-    transition: all 0.2s;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.2rem;
+    transition: color 0.15s;
 }
 
 .poi-link:hover {
@@ -622,11 +611,10 @@
     text-decoration: underline;
 }
 
-/* Empty state */
 .empty-dossiers {
     text-align: center;
     padding: 3rem 1rem;
-    color: #6b7280;
+    color: #bbb;
 }
 
 .empty-dossiers .empty-icon {
@@ -640,10 +628,10 @@
     justify-content: center;
     padding: 4rem;
     font-size: 1rem;
-    color: #6b7280;
+    color: #999;
+    min-height: 50vh;
 }
 
-/* Responsive */
 @media (max-width: 768px) {
     .secteur-detail-page {
         padding: 1rem;
@@ -667,4 +655,21 @@
         flex-direction: column;
         align-items: stretch;
     }
+}
+
+/* ─── Column Resize Handle ── */
+#dossier-table th {
+    overflow: hidden;
+}
+
+#dossier-table td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#dossier-table td:has(textarea),
+#dossier-table td:has(.inline-textarea-input) {
+    white-space: normal;
+    overflow: visible;
 }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage, LanguageToggle } from '../../i18n/i18n';
+import { ThemeToggle } from '../../theme/ThemeContext';
 import suiviEtudeService from '../../services/suivi-etude.service';
 import type { SuiviEtudeRow, SuiviEtudeTotals } from '../../services/suivi-etude.service';
 import './AdminDashboardPage.css';
@@ -63,6 +65,7 @@ const defaultFormData: Record<string, string | number> = {
 const AdminDashboardPage: React.FC = () => {
     const navigate = useNavigate();
     const { isAdmin, canEdit, allowedSecteurs, logout, user } = useAuth();
+    const { t } = useLanguage();
     const [rows, setRows] = useState<SuiviEtudeRow[]>([]);
     const [totals, setTotals] = useState<SuiviEtudeTotals | null>(null);
     const [tauxNonConformite, setTauxNonConformite] = useState('0');
@@ -116,7 +119,7 @@ const AdminDashboardPage: React.FC = () => {
     };
 
     const handleDelete = async (row: SuiviEtudeRow) => {
-        if (!window.confirm(`Supprimer le secteur "${row.secteur}" ?`)) return;
+        if (!window.confirm(`${t('dashboard.delete_confirm')} "${row.secteur}" ?`)) return;
         try {
             await suiviEtudeService.delete(row.id);
             fetchData();
@@ -164,30 +167,33 @@ const AdminDashboardPage: React.FC = () => {
     };
 
     if (loading) {
-        return <div className="loading-dashboard">Chargement du tableau de bord...</div>;
+        return <div className="loading-dashboard">{t('dashboard.loading')}</div>;
     }
 
     return (
         <div className="admin-dashboard">
             {/* Header */}
             <div className="admin-dashboard-header">
-                <div>
-                    <h1>📊 Tableau de Bord — VUE GLOBAL</h1>
-                    <p>Suivi des études AR — Vue d'ensemble par secteur{user ? ` | ${user.firstName} ${user.lastName}` : ''}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+                    <img src="/logo.png" alt="Logo" style={{ height: '45px', objectFit: 'contain' }} />
+                    <h1>{t('dashboard.title')}</h1>
                 </div>
                 <div className="header-actions">
+                    <ThemeToggle />
+                    <LanguageToggle />
                     {isAdmin && (
-                        <button className="btn-add" style={{ background: '#1565c0' }} onClick={() => navigate('/admin/users')}>
-                            👥 Gestion des Utilisateurs
+                        <button className="btn-add" onClick={() => navigate('/admin/users')}>
+                            {t('dashboard.user_mgmt')}
                         </button>
                     )}
                     {canEdit && (
                         <button className="btn-add" onClick={handleAdd}>
-                            + Ajouter un secteur
+                            {t('dashboard.add_sector')}
                         </button>
                     )}
-                    <button className="btn-add" style={{ background: '#c62828' }} onClick={logout}>
-                        🚪 Déconnexion
+                    <button className="btn-add" onClick={logout}>
+                        {t('common.logout')}
                     </button>
                 </div>
             </div>
@@ -196,19 +202,19 @@ const AdminDashboardPage: React.FC = () => {
             {totals && (
                 <div className="stats-row">
                     <div className="stat-highlight total">
-                        <span className="stat-label">Total Dossiers</span>
+                        <span className="stat-label">{t('dashboard.total_dossiers')}</span>
                         <span className="stat-number">{totals.nbDossiers}</span>
                     </div>
                     <div className="stat-highlight taux">
-                        <span className="stat-label">Taux Non Conformité</span>
+                        <span className="stat-label">{t('dashboard.taux_nc')}</span>
                         <span className="stat-number">{tauxNonConformite}%</span>
                     </div>
                     <div className="stat-highlight dossier-be">
-                        <span className="stat-label">Dossier Main BE</span>
+                        <span className="stat-label">{t('dashboard.dossier_be')}</span>
                         <span className="stat-number">{totals.dossierMainBe}</span>
                     </div>
                     <div className="stat-highlight dossier-chaff">
-                        <span className="stat-label">Dossier Main CHAFF</span>
+                        <span className="stat-label">{t('dashboard.dossier_chaff')}</span>
                         <span className="stat-number">{totals.dossierMainChaff}</span>
                     </div>
                 </div>
@@ -216,7 +222,7 @@ const AdminDashboardPage: React.FC = () => {
 
             {/* Main VUE GLOBAL Table */}
             <div className="vue-global-section">
-                <h2>Vue Globale par Secteur</h2>
+                <h2>{t('dashboard.vue_globale')}</h2>
                 <div className="excel-table-wrapper">
                     <table className="excel-table" id="vue-global-table">
                         <thead>
@@ -230,7 +236,7 @@ const AdminDashboardPage: React.FC = () => {
                             {filteredRows.length === 0 ? (
                                 <tr>
                                     <td colSpan={TABLE_COLUMNS.length} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
-                                        Aucun secteur disponible.
+                                        {t('dashboard.no_sectors')}
                                     </td>
                                 </tr>
                             ) : (
@@ -270,7 +276,7 @@ const AdminDashboardPage: React.FC = () => {
                                     {/* GLOBAL Totals Row */}
                                     {totals && (
                                         <tr className="totals-row">
-                                            <td>GLOBAL</td>
+                                            <td>{t('dashboard.global')}</td>
                                             {NUMERIC_FIELDS.map((field) => (
                                                 <td key={field.key}>
                                                     <span className="cell-value">
@@ -291,7 +297,7 @@ const AdminDashboardPage: React.FC = () => {
             {/* DOSSIER MAIN Breakdown Table */}
             {rows.length > 0 && (
                 <div className="dossier-main-section">
-                    <h2>Répartition Dossier Main BE / CHAFF</h2>
+                    <h2>{t('dashboard.dossier_repartition')}</h2>
                     <div className="dossier-table-wrapper">
                         <table className="dossier-table">
                             <thead>
@@ -328,12 +334,12 @@ const AdminDashboardPage: React.FC = () => {
             {showModal && (
                 <div className="se-modal-overlay" onClick={() => setShowModal(false)}>
                     <div className="se-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h3>{editingRow ? `Modifier — ${editingRow.secteur}` : 'Ajouter un Secteur'}</h3>
+                        <h3>{editingRow ? `${t('dashboard.modify_sector')} — ${editingRow.secteur}` : t('dashboard.add_sector_modal')}</h3>
                         <form onSubmit={handleSubmit}>
                             <div className="se-form-grid">
                                 {/* Secteur Name */}
                                 <div className="se-form-group full-width">
-                                    <label htmlFor="secteur">Nom du Secteur *</label>
+                                    <label htmlFor="secteur">{t('dashboard.sector_name')}</label>
                                     <input
                                         type="text"
                                         id="secteur"
@@ -388,10 +394,10 @@ const AdminDashboardPage: React.FC = () => {
                                     onClick={() => setShowModal(false)}
                                     disabled={submitting}
                                 >
-                                    Annuler
+                                    {t('common.cancel')}
                                 </button>
                                 <button type="submit" className="btn-save" disabled={submitting}>
-                                    {submitting ? 'Sauvegarde...' : editingRow ? 'Mettre à jour' : 'Créer'}
+                                    {submitting ? t('common.saving') : editingRow ? t('dashboard.update') : t('common.create')}
                                 </button>
                             </div>
                         </form>

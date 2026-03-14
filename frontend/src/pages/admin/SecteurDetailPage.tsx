@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../i18n/i18n';
 import dossierEtudeService from '../../services/dossier-etude.service';
 import suiviEtudeService from '../../services/suivi-etude.service';
 import type { DossierEtude, ColumnConfig } from '../../services/dossier-etude.service';
@@ -61,7 +62,8 @@ function getCellValue(data: Record<string, any>, col: ColumnConfig): string {
     const val = getDataValue(data, col);
     if (val === null || val === undefined || val === '') return '-';
     if (col.type === 'date') return formatDate(val);
-    if (typeof val === 'string' && val.length > 35) return val.substring(0, 35) + '...';
+    const maxLen = col.type === 'textarea' ? 120 : 35;
+    if (typeof val === 'string' && val.length > maxLen) return val.substring(0, maxLen) + '...';
     return String(val);
 }
 
@@ -69,6 +71,7 @@ function getCellValue(data: Record<string, any>, col: ColumnConfig): string {
 const ETAT_OPTIONS = [
     '01 VT A FAIRE',
     '01.2 A REMONTER',
+    '01.3 Etude CDC',
     '02 RETOUR VT',
     '03 DOSSIER A REPRENDRE',
     '04 DOSSIER A MONTER',
@@ -95,6 +98,7 @@ function isEtatColumn(col: ColumnConfig): boolean {
 const ETAT_COLORS: Record<string, { bg: string; color: string }> = {
     '01 vt a faire': { bg: '#92D050', color: '#000' },
     '01.2 a remonter': { bg: '#FFC000', color: '#000' },
+    '01.3 etude cdc': { bg: '#E2EFDA', color: '#375623' },
     '02 retour vt': { bg: '#7030A0', color: '#fff' },
     '03 dossier a reprendre': { bg: '#FF6600', color: '#fff' },
     '04 dossier a monter': { bg: '#FF0000', color: '#fff' },
@@ -158,6 +162,7 @@ const SecteurDetailPage: React.FC = () => {
     const { secteur } = useParams<{ secteur: string }>();
     const navigate = useNavigate();
     const { canEdit, allowedSecteurs } = useAuth();
+    const { t } = useLanguage();
     const sectorName = secteur ? decodeURIComponent(secteur) : '';
 
     // Block access if secteur is not in allowedSecteurs
@@ -196,6 +201,76 @@ const SecteurDetailPage: React.FC = () => {
     // Sorting
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+    // Column resizing
+    const [colWidths, setColWidths] = useState<Record<string, number>>({});
+    const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+
+    const onResizeMouseDown = useCallback((e: React.MouseEvent, colKey: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const th = (e.target as HTMLElement).parentElement!;
+        const startW = th.offsetWidth;
+        resizingRef.current = { key: colKey, startX: e.clientX, startW };
+
+        const onMouseMove = (ev: MouseEvent) => {
+            if (!resizingRef.current) return;
+            const diff = ev.clientX - resizingRef.current.startX;
+            const newW = Math.max(50, resizingRef.current.startW + diff);
+            setColWidths(prev => ({ ...prev, [resizingRef.current!.key]: newW }));
+        };
+        const onMouseUp = () => {
+            resizingRef.current = null;
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    }, []);
+
+    // Generic inline cell editing — tracks which cell is being edited as "dossierId_colKey"
+    const [inlineEditKey, setInlineEditKey] = useState<string | null>(null);
+    const [inlineEditValue, setInlineEditValue] = useState<string>('');
+    const [inlineSaving, setInlineSaving] = useState<string | null>(null);
+
+    const startInlineEdit = (dossier: DossierEtude, col: ColumnConfig) => {
+        const cellKey = `${dossier.id}_${col.key}`;
+        const rawVal = getDataValue(dossier.data, col);
+        if (col.type === 'date') {
+            setInlineEditValue(toInputDate(rawVal));
+        } else {
+            setInlineEditValue(rawVal ?? '');
+        }
+        setInlineEditKey(cellKey);
+    };
+
+    const handleInlineSave = async (dossier: DossierEtude, col: ColumnConfig, value: string) => {
+        setInlineEditKey(null);
+        let saveValue: string = value;
+        if (col.type === 'date' && value) {
+            const [y, m, d] = value.split('-');
+            saveValue = `${d}/${m}/${y}`;
+        }
+        const oldVal = getDataValue(dossier.data, col) || '';
+        if (saveValue === oldVal) return;
+        const cellKey = `${dossier.id}_${col.key}`;
+        setInlineSaving(cellKey);
+        try {
+            const updatedData = { ...dossier.data, [col.key]: saveValue };
+            await dossierEtudeService.update(dossier.id, updatedData);
+            setDossiers(prev => prev.map(dd =>
+                dd.id === dossier.id ? { ...dd, data: updatedData } : dd
+            ));
+        } catch {
+            alert('Échec de la mise à jour');
+        } finally {
+            setInlineSaving(null);
+        }
+    };
 
     const handleSort = (col: ColumnConfig) => {
         const key = col.key;
@@ -423,10 +498,20 @@ const SecteurDetailPage: React.FC = () => {
         return pages;
     };
 
+    // ─── Computed stats ───────────────────────────────────────
+    const vtAFaireCount = React.useMemo(() => {
+        const etatCol = columns.find(c => isEtatColumn(c));
+        if (!etatCol) return 0;
+        return dossiers.filter(d => {
+            const val = getDataValue(d.data, etatCol);
+            return val && String(val).toLowerCase().trim() === '01 vt a faire';
+        }).length;
+    }, [dossiers, columns]);
+
     // ─── Render ───────────────────────────────────────────────
 
     if (loading && dossiers.length === 0) {
-        return <div className="loading-dossiers">Chargement des dossiers {sectorName}...</div>;
+        return <div className="loading-dossiers">{t('common.loading')} {sectorName}...</div>;
     }
 
     return (
@@ -435,19 +520,19 @@ const SecteurDetailPage: React.FC = () => {
             <div className="secteur-detail-header">
                 <div className="header-left">
                     <span className="back-link" onClick={() => navigate('/admin/dashboard')}>
-                        ← Retour au Tableau de Bord
+                        {t('common.back_dashboard')}
                     </span>
                     <h1>📋 {sectorName}</h1>
-                    <p className="subtitle">Détail des dossiers — {pagination.total} dossier(s)</p>
+                    <p className="subtitle">{t('sector.subtitle')} — {pagination.total} {t('sector.dossier_count')}</p>
                 </div>
                 <div className="header-right">
                     {canEdit && (
                         <>
                             <button className="btn-manage-cols" onClick={openColumnManager}>
-                                ⚙️ Gérer les colonnes
+                                {t('sector.manage_cols')}
                             </button>
                             <button className="btn-add-dossier" onClick={handleAdd}>
-                                + Ajouter un dossier
+                                {t('sector.add_dossier')}
                             </button>
                         </>
                     )}
@@ -457,11 +542,11 @@ const SecteurDetailPage: React.FC = () => {
             {/* Stats bar */}
             <div className="secteur-stats-bar">
                 <div className="secteur-stat-card primary">
-                    <span className="stat-card-label">Total Dossiers</span>
-                    <span className="stat-card-value">{pagination.total}</span>
+                    <span className="stat-card-label">{t('sector.vt_a_faire')}</span>
+                    <span className="stat-card-value">{vtAFaireCount}</span>
                 </div>
                 <div className="secteur-stat-card info">
-                    <span className="stat-card-label">Colonnes</span>
+                    <span className="stat-card-label">{t('sector.nb_dossiers')}</span>
                     <span className="stat-card-value">{columns.length}</span>
                 </div>
             </div>
@@ -471,7 +556,7 @@ const SecteurDetailPage: React.FC = () => {
                 <input
                     type="text"
                     className="filter-input"
-                    placeholder="🔍 Rechercher..."
+                    placeholder={`🔍 ${t('sector.search')}`}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
@@ -479,22 +564,40 @@ const SecteurDetailPage: React.FC = () => {
 
             {/* Dynamic Table */}
             <div className="vue-global-section">
-                <h2>Dossiers — {sectorName}</h2>
+                <h2>{t('sector.dossiers_title')} — {sectorName}</h2>
                 <div className="excel-table-wrapper">
-                    <table className="excel-table" id="dossier-table">
+                    <table className="excel-table" id="dossier-table" style={{ tableLayout: 'fixed' }}>
                         <thead>
                             <tr>
                                 {columns.map((col) => (
                                     <th
                                         key={col.key}
                                         onClick={() => handleSort(col)}
-                                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                                        style={{
+                                            cursor: 'pointer',
+                                            userSelect: 'none',
+                                            position: 'relative',
+                                            width: colWidths[col.key] ? `${colWidths[col.key]}px` : (col.type === 'textarea' ? '300px' : undefined),
+                                            minWidth: '50px',
+                                        }}
                                     >
                                         {col.label.toUpperCase()}
                                         {sortKey === col.key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                                        <div
+                                            onMouseDown={(e) => onResizeMouseDown(e, col.key)}
+                                            style={{
+                                                position: 'absolute',
+                                                right: 0,
+                                                top: 0,
+                                                bottom: 0,
+                                                width: '5px',
+                                                cursor: 'col-resize',
+                                                zIndex: 1,
+                                            }}
+                                        />
                                     </th>
                                 ))}
-                                {canEdit && <th>ACTIONS</th>}
+                                {canEdit && <th style={{ width: '80px', minWidth: '80px' }}>{t('common.actions')}</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -507,24 +610,86 @@ const SecteurDetailPage: React.FC = () => {
                             ) : (
                                 sortedDossiers.map((d) => (
                                     <tr key={d.id}>
-                                        {columns.map((col) => (
-                                            <td key={col.key} title={String(getDataValue(d.data, col) || '')}>
-                                                {isPoiColumn(col) && getDataValue(d.data, col) ? (
-                                                    <a
-                                                        href={`${POI_BASE_URL}${getDataValue(d.data, col)}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="poi-link"
-                                                    >
-                                                        🔗 {getCellValue(d.data, col)}
-                                                    </a>
-                                                ) : (
-                                                    <span style={getCellStyle(col, getDataValue(d.data, col), d.data, columns)}>
-                                                        {getCellValue(d.data, col)}
-                                                    </span>
-                                                )}
-                                            </td>
-                                        ))}
+                                        {columns.map((col) => {
+                                            const cellKey = `${d.id}_${col.key}`;
+                                            const isEditing = inlineEditKey === cellKey;
+                                            const isSaving = inlineSaving === cellKey;
+
+                                            return (
+                                                <td key={col.key} title={String(getDataValue(d.data, col) || '')}>
+                                                    {isEditing && canEdit ? (
+                                                        // ── Inline edit mode ──
+                                                        isEtatColumn(col) ? (
+                                                            <select
+                                                                className="inline-etat-select"
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => { setInlineEditValue(e.target.value); handleInlineSave(d, col, e.target.value); }}
+                                                                onBlur={() => setInlineEditKey(null)}
+                                                                autoFocus
+                                                                style={{ maxWidth: '180px', fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2' }}
+                                                            >
+                                                                <option value="">— Sélectionner —</option>
+                                                                {ETAT_OPTIONS.map((opt) => (
+                                                                    <option key={opt} value={opt}>{opt}</option>
+                                                                ))}
+                                                            </select>
+                                                        ) : col.type === 'date' ? (
+                                                            <input
+                                                                type="date"
+                                                                className="inline-date-input"
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => { setInlineEditValue(e.target.value); handleInlineSave(d, col, e.target.value); }}
+                                                                onBlur={() => setInlineEditKey(null)}
+                                                                autoFocus
+                                                                style={{ fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2', maxWidth: '150px' }}
+                                                            />
+                                                        ) : col.type === 'textarea' ? (
+                                                            <textarea
+                                                                className="inline-textarea-input"
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                onBlur={() => handleInlineSave(d, col, inlineEditValue)}
+                                                                onKeyDown={(e) => { if (e.key === 'Escape') setInlineEditKey(null); }}
+                                                                autoFocus
+                                                                rows={3}
+                                                                style={{ fontSize: '0.78rem', padding: '4px', borderRadius: '4px', border: '1.5px solid #1976d2', width: '100%', minWidth: '250px', resize: 'vertical' }}
+                                                            />
+                                                        ) : (
+                                                            <input
+                                                                type={col.type === 'number' ? 'number' : 'text'}
+                                                                className="inline-text-input"
+                                                                value={inlineEditValue}
+                                                                onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                onBlur={() => handleInlineSave(d, col, inlineEditValue)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+                                                                    if (e.key === 'Escape') setInlineEditKey(null);
+                                                                }}
+                                                                autoFocus
+                                                                style={{ fontSize: '0.78rem', padding: '2px 6px', borderRadius: '4px', border: '1.5px solid #1976d2', width: '100%' }}
+                                                            />
+                                                        )
+                                                    ) : isPoiColumn(col) && getDataValue(d.data, col) ? (
+                                                        <a
+                                                            href={`${POI_BASE_URL}${getDataValue(d.data, col)}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="poi-link"
+                                                            onDoubleClick={(e) => { e.preventDefault(); if (canEdit) startInlineEdit(d, col); }}
+                                                        >
+                                                            {isSaving ? '⏳...' : `🔗 ${getCellValue(d.data, col)}`}
+                                                        </a>
+                                                    ) : (
+                                                        <span
+                                                            style={{ ...getCellStyle(col, getDataValue(d.data, col), d.data, columns), cursor: canEdit ? 'pointer' : 'default' }}
+                                                            onDoubleClick={() => { if (canEdit) startInlineEdit(d, col); }}
+                                                        >
+                                                            {isSaving ? '⏳...' : getCellValue(d.data, col)}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })}
                                         {canEdit && (
                                             <td>
                                                 <div className="row-actions">
@@ -545,7 +710,7 @@ const SecteurDetailPage: React.FC = () => {
             {pagination.totalPages > 1 && (
                 <div className="dossier-pagination">
                     <span className="pagination-info">
-                        Page {pagination.page} / {pagination.totalPages} — {pagination.total} dossier(s)
+                        {t('sector.page')} {pagination.page} / {pagination.totalPages} — {pagination.total} {t('sector.dossier_count')}
                     </span>
                     <div className="pagination-buttons">
                         <button className="btn-page" disabled={pagination.page <= 1} onClick={() => handlePageChange(pagination.page - 1)}>←</button>
@@ -561,7 +726,7 @@ const SecteurDetailPage: React.FC = () => {
             {showDossierModal && (
                 <div className="dos-modal-overlay" onClick={() => setShowDossierModal(false)}>
                     <div className="dos-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h3>{editingDossier ? `Modifier Dossier` : `Ajouter un Dossier — ${sectorName}`}</h3>
+                        <h3>{editingDossier ? t('sector.modify_dossier') : `${t('sector.add_dossier_modal')} — ${sectorName}`}</h3>
                         <form onSubmit={handleSubmit}>
                             <div className="dos-form-grid">
                                 {columns.map((col) => (
@@ -575,7 +740,7 @@ const SecteurDetailPage: React.FC = () => {
                                                 value={formData[col.key] || ''}
                                                 onChange={(e) => handleFormChange(col.key, e.target.value)}
                                             >
-                                                <option value="">— Sélectionner —</option>
+                                                <option value="">{t('common.select')}</option>
                                                 {ETAT_OPTIONS.map((opt) => (
                                                     <option key={opt} value={opt}>{opt}</option>
                                                 ))}
@@ -614,9 +779,9 @@ const SecteurDetailPage: React.FC = () => {
                                 ))}
                             </div>
                             <div className="dos-modal-actions">
-                                <button type="button" className="dos-btn-cancel" onClick={() => setShowDossierModal(false)} disabled={submitting}>Annuler</button>
+                                <button type="button" className="dos-btn-cancel" onClick={() => setShowDossierModal(false)} disabled={submitting}>{t('common.cancel')}</button>
                                 <button type="submit" className="dos-btn-save" disabled={submitting}>
-                                    {submitting ? 'Sauvegarde...' : editingDossier ? 'Mettre à jour' : 'Créer'}
+                                    {submitting ? t('common.saving') : editingDossier ? t('sector.update_btn') : t('sector.create_btn')}
                                 </button>
                             </div>
                         </form>
@@ -628,8 +793,8 @@ const SecteurDetailPage: React.FC = () => {
             {showColumnModal && (
                 <div className="dos-modal-overlay" onClick={() => setShowColumnModal(false)}>
                     <div className="dos-modal-content col-modal" onClick={(e) => e.stopPropagation()}>
-                        <h3>⚙️ Gérer les Colonnes — {sectorName}</h3>
-                        <p className="col-hint">Ajoutez, renommez, réordonnez ou supprimez des colonnes. Les modifications s'appliquent uniquement à ce secteur.</p>
+                        <h3>{t('sector.col_modal_title')} — {sectorName}</h3>
+                        <p className="col-hint">{t('sector.col_hint')}</p>
 
                         <div className="col-list">
                             {editColumns.map((col, index) => (
@@ -644,17 +809,17 @@ const SecteurDetailPage: React.FC = () => {
                                             value={col.label}
                                             onChange={(e) => handleColumnLabelChange(index, e.target.value)}
                                             className="col-label-input"
-                                            placeholder="Nom de la colonne"
+                                            placeholder={t('sector.col_name')}
                                         />
                                         <select
                                             value={col.type}
                                             onChange={(e) => handleColumnTypeChange(index, e.target.value as ColumnConfig['type'])}
                                             className="col-type-select"
                                         >
-                                            <option value="text">Texte</option>
-                                            <option value="date">Date</option>
-                                            <option value="number">Nombre</option>
-                                            <option value="textarea">Zone de texte</option>
+                                            <option value="text">{t('sector.col_type_text')}</option>
+                                            <option value="date">{t('sector.col_type_date')}</option>
+                                            <option value="number">{t('sector.col_type_number')}</option>
+                                            <option value="textarea">{t('sector.col_type_textarea')}</option>
                                         </select>
                                         <label className="col-required-label">
                                             <input
@@ -662,7 +827,7 @@ const SecteurDetailPage: React.FC = () => {
                                                 checked={col.required || false}
                                                 onChange={() => handleColumnRequiredChange(index)}
                                             />
-                                            Requis
+                                            {t('sector.col_required')}
                                         </label>
                                     </div>
                                     <button type="button" className="col-remove-btn" onClick={() => handleRemoveColumn(index)}>🗑️</button>
@@ -671,13 +836,13 @@ const SecteurDetailPage: React.FC = () => {
                         </div>
 
                         <button type="button" className="col-add-btn" onClick={handleAddColumn}>
-                            + Ajouter une colonne
+                            {t('sector.col_add')}
                         </button>
 
                         <div className="dos-modal-actions">
-                            <button type="button" className="dos-btn-cancel" onClick={() => setShowColumnModal(false)} disabled={savingColumns}>Annuler</button>
+                            <button type="button" className="dos-btn-cancel" onClick={() => setShowColumnModal(false)} disabled={savingColumns}>{t('common.cancel')}</button>
                             <button type="button" className="dos-btn-save" onClick={handleSaveColumns} disabled={savingColumns}>
-                                {savingColumns ? 'Sauvegarde...' : 'Enregistrer les colonnes'}
+                                {savingColumns ? t('sector.col_saving') : t('sector.col_save')}
                             </button>
                         </div>
                     </div>

@@ -1,4 +1,4 @@
-/* Modern CSS Reset and Base Styles */
+/* Base — Creative Tim Style Light Theme */
 *,
 *::before,
 *::after {
@@ -14,18 +14,17 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+    'Helvetica Neue', sans-serif;
   line-height: 1.6;
-  color: #1e293b;
-  background: #f8fafc;
+  color: #2c2c2c;
+  background: #f4f5f7;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Typography */
 h1,
 h2,
 h3,
@@ -33,30 +32,27 @@ h4,
 h5,
 h6 {
   line-height: 1.2;
+  color: #2c2c2c;
 }
 
 p {
   margin-bottom: 1rem;
 }
 
-/* Links */
 a {
   color: inherit;
   text-decoration: none;
 }
 
-/* Buttons */
 button {
   font-family: inherit;
   font-size: inherit;
 }
 
-/* Remove default button styling */
 button:focus {
   outline: none;
 }
 
-/* Inputs */
 input,
 textarea,
 select {
@@ -64,7 +60,6 @@ select {
   font-size: inherit;
 }
 
-/* Utility classes */
 .text-center {
   text-align: center;
 }
@@ -101,21 +96,487 @@ select {
   margin-bottom: 2rem;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #eee;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 5px;
+  background: #bbb;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #999;
+}
+
+/* ============================================
+   DARK MODE OVERRIDES — [data-theme="dark"]
+   ============================================ */
+
+[data-theme="dark"] body {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* ---- Auth Pages ---- */
+[data-theme="dark"] .auth-container {
+  background: linear-gradient(135deg, #0f172a, #1e1b4b, #0f172a);
+}
+
+[data-theme="dark"] .auth-card {
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid #334155;
+  box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .auth-title {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .auth-subtitle {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .form-group label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .form-group input:focus {
+  border-color: #fb8c00;
+  box-shadow: 0 0 0 3px rgba(251, 140, 0, 0.15);
+}
+
+[data-theme="dark"] .form-group input::placeholder {
+  color: #64748b;
+}
+
+[data-theme="dark"] .error-message {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .auth-footer {
+  border-top-color: #334155;
+}
+
+[data-theme="dark"] .auth-footer p {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .auth-link {
+  color: #fb8c00;
+}
+
+[data-theme="dark"] .loading-container {
+  background: #0f172a;
+}
+
+/* ---- Dashboard ---- */
+[data-theme="dark"] .admin-dashboard {
+  background: #0f172a;
+}
+
+[data-theme="dark"] .admin-dashboard-header h1 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .admin-dashboard-header p {
+  color: #64748b;
+}
+
+/* Stat cards — keep their gradients, just darken backgrounds */
+[data-theme="dark"] .stat-highlight {
+  background: #1e293b;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .stat-highlight .stat-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .stat-highlight .stat-number {
+  color: #f1f5f9;
+}
+
+/* Tables */
+[data-theme="dark"] .excel-table-wrapper,
+[data-theme="dark"] .dossier-table-wrapper {
+  background: #151d2e;
+  border: 1px solid #253249;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .excel-table thead th,
+[data-theme="dark"] .dossier-table thead th {
+  background: linear-gradient(135deg, #fb8c00, #f57c00);
+  color: #fff;
+  border: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .excel-table tbody td,
+[data-theme="dark"] .dossier-table tbody td {
+  color: #e2e8f0;
+  border-bottom: 1px solid #1e293b;
+  background: #151d2e;
+}
+
+[data-theme="dark"] .excel-table tbody tr:nth-child(even) td,
+[data-theme="dark"] .dossier-table tbody tr:nth-child(even) td {
+  background: #1a2438;
+}
+
+[data-theme="dark"] .excel-table tbody tr:hover td,
+[data-theme="dark"] .dossier-table tbody tr:hover td {
+  background: rgba(251, 140, 0, 0.08);
+}
+
+[data-theme="dark"] .excel-table tbody tr:hover {
+  box-shadow: inset 3px 0 0 #fb8c00;
+}
+
+[data-theme="dark"] .excel-table tbody td:first-child {
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+[data-theme="dark"] .cell-value.zero {
+  color: #4a5568;
+  background: transparent;
+}
+
+[data-theme="dark"] .cell-value.positive {
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.12);
+}
+
+[data-theme="dark"] .cell-value.warning {
+  color: #fcd34d;
+  background: rgba(252, 211, 77, 0.12);
+}
+
+[data-theme="dark"] .cell-value.danger {
+  color: #fca5a5;
+  background: rgba(252, 165, 165, 0.12);
+}
+
+[data-theme="dark"] .excel-table tbody tr.totals-row td,
+[data-theme="dark"] .excel-table tbody tr.totals-row:hover td {
+  background: linear-gradient(135deg, #fb8c00, #f57c00) !important;
+  color: #fff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .excel-table tbody tr.totals-row .cell-value {
+  color: #fff !important;
+  background: transparent !important;
+}
+
+[data-theme="dark"] .dossier-table tbody td:last-child {
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .dossier-table tfoot td {
+  background: linear-gradient(135deg, #fb8c00, #f57c00);
+  color: #fff;
+}
+
+/* Section titles */
+[data-theme="dark"] .vue-global-section h2,
+[data-theme="dark"] .dossier-main-section h2 {
+  color: #f1f5f9;
+}
+
+/* Action buttons */
+[data-theme="dark"] .btn-row-edit {
+  background: rgba(30, 136, 229, 0.15);
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .btn-row-delete {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+/* Modals */
+[data-theme="dark"] .se-modal-content,
+[data-theme="dark"] .dos-modal-content {
+  background: #1e293b;
+  border: 1px solid #334155;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .se-modal-content h3,
+[data-theme="dark"] .dos-modal-content h3 {
+  color: #f1f5f9;
+  border-bottom-color: #334155;
+}
+
+[data-theme="dark"] .se-form-group label,
+[data-theme="dark"] .dos-form-group label,
+[data-theme="dark"] .create-form-group label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .se-form-group input,
+[data-theme="dark"] .dos-form-group input,
+[data-theme="dark"] .dos-form-group textarea,
+[data-theme="dark"] .dos-form-group select,
+[data-theme="dark"] .create-form-group input,
+[data-theme="dark"] .create-form-group select {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .se-form-group input:focus,
+[data-theme="dark"] .dos-form-group input:focus,
+[data-theme="dark"] .dos-form-group textarea:focus,
+[data-theme="dark"] .dos-form-group select:focus,
+[data-theme="dark"] .create-form-group input:focus,
+[data-theme="dark"] .create-form-group select:focus {
+  border-color: #fb8c00;
+  box-shadow: 0 0 0 3px rgba(251, 140, 0, 0.15);
+}
+
+[data-theme="dark"] .se-modal-actions,
+[data-theme="dark"] .dos-modal-actions {
+  border-top-color: #334155;
+}
+
+[data-theme="dark"] .btn-cancel,
+[data-theme="dark"] .dos-btn-cancel {
+  background: #334155;
+  color: #cbd5e1;
+  border-color: #475569;
+}
+
+[data-theme="dark"] .loading-dashboard {
+  color: #94a3b8;
+}
+
+/* ---- Secteur Detail ---- */
+[data-theme="dark"] .secteur-detail-page {
+  background: #0f172a;
+}
+
+[data-theme="dark"] .header-left .back-link {
+  color: #fb8c00;
+}
+
+[data-theme="dark"] .secteur-detail-header .header-left h1 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .secteur-detail-header .header-left .subtitle {
+  color: #64748b;
+}
+
+[data-theme="dark"] .secteur-stat-card {
+  background: #1e293b;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .secteur-stat-card .stat-card-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .secteur-stat-card .stat-card-value {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .btn-manage-cols {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .filter-input {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .filter-input::placeholder {
+  color: #64748b;
+}
+
+/* Pagination */
+[data-theme="dark"] .dossier-pagination {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .btn-page {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .btn-page:hover:not(:disabled) {
+  border-color: #fb8c00;
+  color: #fb8c00;
+}
+
+/* Column management */
+[data-theme="dark"] .col-item {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .col-label-input,
+[data-theme="dark"] .col-type-select {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .col-move-btn {
+  background: #334155;
+  color: #94a3b8;
+  border-color: #475569;
+}
+
+[data-theme="dark"] .col-required-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .col-hint {
+  color: #64748b;
+}
+
+[data-theme="dark"] .col-add-btn {
+  border-color: #334155;
+  color: #fb8c00;
+}
+
+[data-theme="dark"] .col-add-btn:hover {
+  background: rgba(251, 140, 0, 0.08);
+  border-color: #fb8c00;
+}
+
+/* ---- User Management ---- */
+[data-theme="dark"] .user-management-page {
+  background: #0f172a;
+}
+
+[data-theme="dark"] .user-mgmt-header .back-link {
+  color: #fb8c00;
+}
+
+[data-theme="dark"] .user-mgmt-header h1 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .user-mgmt-header p {
+  color: #64748b;
+}
+
+[data-theme="dark"] .user-stat-card {
+  background: #1e293b;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .user-stat-card .stat-label {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .user-stat-card .stat-value {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .user-card {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .user-card:hover {
+  border-color: #475569;
+}
+
+[data-theme="dark"] .user-details h3 {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .user-email {
+  color: #64748b;
+}
+
+[data-theme="dark"] .admin-notice {
+  background: rgba(67, 160, 71, 0.12);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .perm-section h4 {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .toggle-label {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .toggle-slider {
+  background: #475569;
+}
+
+[data-theme="dark"] .btn-all-secteurs {
+  background: transparent;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .btn-all-secteurs.active {
+  background: rgba(251, 140, 0, 0.12);
+  border-color: #fb8c00;
+  color: #fb8c00;
+}
+
+[data-theme="dark"] .secteur-checkbox {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .user-role-badge.admin {
+  background: rgba(67, 160, 71, 0.12);
+  color: #4ade80;
+}
+
+[data-theme="dark"] .user-role-badge.viewer {
+  background: rgba(30, 136, 229, 0.12);
+  color: #60a5fa;
 }

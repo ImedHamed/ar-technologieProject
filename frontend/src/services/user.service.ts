@@ -27,6 +27,10 @@ class UserService {
         const response = await apiClient.put<{ user: User }>(`/users/${id}/permissions`, data);
         return response.data.user;
     }
+
+    async deleteUser(id: string): Promise<void> {
+        await apiClient.delete(`/users/${id}`);
+    }
 }
 
 export default new UserService();

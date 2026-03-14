@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../i18n/i18n';
 import userService from '../../services/user.service';
 import type { RoleOption } from '../../services/user.service';
 import suiviEtudeService from '../../services/suivi-etude.service';
@@ -10,6 +11,7 @@ import './UserManagementPage.css';
 const UserManagementPage: React.FC = () => {
     const navigate = useNavigate();
     const { isAdmin } = useAuth();
+    const { t } = useLanguage();
     const [users, setUsers] = useState<User[]>([]);
     const [roles, setRoles] = useState<RoleOption[]>([]);
     const [secteurs, setSecteurs] = useState<string[]>([]);
@@ -55,7 +57,7 @@ const UserManagementPage: React.FC = () => {
             });
             setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...updated } : u)));
         } catch (error) {
-            alert('Échec de la mise à jour');
+            alert(t('common.update_failed'));
         } finally {
             setSaving(null);
         }
@@ -74,21 +76,23 @@ const UserManagementPage: React.FC = () => {
             });
             setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...updated } : u)));
         } catch (error) {
-            alert('Échec de la mise à jour');
+            alert(t('common.update_failed'));
         } finally {
             setSaving(null);
         }
     };
 
-    const handleSelectAllSecteurs = async (user: User) => {
+    const handleCheckAllSecteurs = async (user: User) => {
+        const allChecked = secteurs.every(s => (user.allowedSecteurs || []).includes(s));
+        const newSecteurs = allChecked ? [] : [...secteurs];
         setSaving(user.id);
         try {
             const updated = await userService.updatePermissions(user.id, {
-                allowedSecteurs: [],
+                allowedSecteurs: newSecteurs,
             });
             setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, ...updated } : u)));
         } catch (error) {
-            alert('Échec de la mise à jour');
+            alert(t('common.update_failed'));
         } finally {
             setSaving(null);
         }
@@ -107,7 +111,7 @@ const UserManagementPage: React.FC = () => {
     const handleCreateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!createForm.email || !createForm.password || !createForm.firstName || !createForm.lastName || !createForm.roleId) {
-            alert('Tous les champs sont obligatoires');
+            alert(t('common.all_fields_required'));
             return;
         }
         setCreating(true);
@@ -122,8 +126,25 @@ const UserManagementPage: React.FC = () => {
         }
     };
 
+    const handleDeleteUser = async (user: User) => {
+        const confirmed = window.confirm(
+            `${t('users.delete_confirm')} ${user.firstName} ${user.lastName} ?`
+        );
+        if (!confirmed) return;
+
+        setSaving(user.id);
+        try {
+            await userService.deleteUser(user.id);
+            setUsers((prev) => prev.filter((u) => u.id !== user.id));
+        } catch (error: any) {
+            alert(error.response?.data?.error || t('common.update_failed'));
+        } finally {
+            setSaving(null);
+        }
+    };
+
     if (loading) {
-        return <div className="loading-dashboard">Chargement des utilisateurs...</div>;
+        return <div className="loading-dashboard">{t('users.loading')}</div>;
     }
 
     return (
@@ -131,29 +152,29 @@ const UserManagementPage: React.FC = () => {
             <div className="user-mgmt-header">
                 <div>
                     <span className="back-link" onClick={() => navigate('/admin/dashboard')}>
-                        ← Retour au Tableau de Bord
+                        {t('common.back_dashboard')}
                     </span>
-                    <h1>👥 Gestion des Utilisateurs</h1>
-                    <p>Gérez les permissions d'accès et de modification pour chaque utilisateur</p>
+                    <h1>{t('users.title')}</h1>
+                    <p>{t('users.subtitle')}</p>
                 </div>
                 <div className="header-actions">
                     <button className="btn-create-user" onClick={handleOpenCreate}>
-                        + Créer un compte
+                        {t('users.create_account')}
                     </button>
                 </div>
             </div>
 
             <div className="user-mgmt-stats">
                 <div className="user-stat-card">
-                    <span className="stat-label">Total Utilisateurs</span>
+                    <span className="stat-label">{t('users.total')}</span>
                     <span className="stat-value">{users.length}</span>
                 </div>
                 <div className="user-stat-card">
-                    <span className="stat-label">Éditeurs</span>
+                    <span className="stat-label">{t('users.editors')}</span>
                     <span className="stat-value">{users.filter((u) => u.canEdit).length}</span>
                 </div>
                 <div className="user-stat-card">
-                    <span className="stat-label">Lecture seule</span>
+                    <span className="stat-label">{t('users.read_only')}</span>
                     <span className="stat-value">{users.filter((u) => !u.canEdit).length}</span>
                 </div>
             </div>
@@ -176,14 +197,25 @@ const UserManagementPage: React.FC = () => {
                                 </div>
                             </div>
 
+                            {!isAdminUser && (
+                                <button
+                                    className="btn-delete-user"
+                                    onClick={() => handleDeleteUser(user)}
+                                    disabled={saving === user.id}
+                                    title={t('users.delete_user')}
+                                >
+                                    🗑
+                                </button>
+                            )}
+
                             {isAdminUser ? (
                                 <div className="user-perms">
-                                    <p className="admin-notice">⚡ Accès complet (Admin)</p>
+                                    <p className="admin-notice">{t('users.full_access')}</p>
                                 </div>
                             ) : (
                                 <div className="user-perms">
                                     <div className="perm-section">
-                                        <h4>Droit de modification</h4>
+                                        <h4>{t('users.edit_right')}</h4>
                                         <label className="toggle-switch">
                                             <input
                                                 type="checkbox"
@@ -193,20 +225,20 @@ const UserManagementPage: React.FC = () => {
                                             />
                                             <span className="toggle-slider"></span>
                                             <span className="toggle-label">
-                                                {user.canEdit ? '✅ Peut modifier' : '🔒 Lecture seule'}
+                                                {user.canEdit ? t('users.can_edit') : t('users.view_only')}
                                             </span>
                                         </label>
                                     </div>
 
                                     <div className="perm-section">
-                                        <h4>Secteurs autorisés</h4>
+                                        <h4>{t('users.allowed_sectors')}</h4>
                                         <div className="secteur-controls">
                                             <button
-                                                className={`btn-all-secteurs ${(!user.allowedSecteurs || user.allowedSecteurs.length === 0) ? 'active' : ''}`}
-                                                onClick={() => handleSelectAllSecteurs(user)}
+                                                className={`btn-all-secteurs ${secteurs.every(s => (user.allowedSecteurs || []).includes(s)) ? 'active' : ''}`}
+                                                onClick={() => handleCheckAllSecteurs(user)}
                                                 disabled={saving === user.id}
                                             >
-                                                🌐 Tous les secteurs
+                                                {t('users.all_sectors')}
                                             </button>
                                         </div>
                                         <div className="secteur-checkboxes">
@@ -224,7 +256,7 @@ const UserManagementPage: React.FC = () => {
                                         </div>
                                         {user.allowedSecteurs && user.allowedSecteurs.length > 0 && (
                                             <p className="secteur-hint">
-                                                ⚠ Accès limité à {user.allowedSecteurs.length} secteur(s)
+                                                {t('users.limited_access')} {user.allowedSecteurs.length} {t('users.sectors')}
                                             </p>
                                         )}
                                     </div>
@@ -239,11 +271,11 @@ const UserManagementPage: React.FC = () => {
             {showCreateModal && (
                 <div className="dos-modal-overlay" onClick={() => setShowCreateModal(false)}>
                     <div className="dos-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <h3>➕ Créer un Compte Utilisateur</h3>
+                        <h3>{t('users.create_modal_title')}</h3>
                         <form onSubmit={handleCreateSubmit}>
                             <div className="create-form-grid">
                                 <div className="create-form-group">
-                                    <label htmlFor="create-firstName">Prénom *</label>
+                                    <label htmlFor="create-firstName">{t('users.first_name')}</label>
                                     <input
                                         type="text"
                                         id="create-firstName"
@@ -254,7 +286,7 @@ const UserManagementPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="create-form-group">
-                                    <label htmlFor="create-lastName">Nom *</label>
+                                    <label htmlFor="create-lastName">{t('users.last_name')}</label>
                                     <input
                                         type="text"
                                         id="create-lastName"
@@ -265,7 +297,7 @@ const UserManagementPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="create-form-group full-width">
-                                    <label htmlFor="create-email">Email *</label>
+                                    <label htmlFor="create-email">{t('users.email')}</label>
                                     <input
                                         type="email"
                                         id="create-email"
@@ -276,7 +308,7 @@ const UserManagementPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="create-form-group">
-                                    <label htmlFor="create-password">Mot de passe *</label>
+                                    <label htmlFor="create-password">{t('users.password')}</label>
                                     <input
                                         type="password"
                                         id="create-password"
@@ -288,14 +320,14 @@ const UserManagementPage: React.FC = () => {
                                     />
                                 </div>
                                 <div className="create-form-group">
-                                    <label htmlFor="create-role">Rôle *</label>
+                                    <label htmlFor="create-role">{t('users.role')}</label>
                                     <select
                                         id="create-role"
                                         value={createForm.roleId}
                                         onChange={(e) => handleCreateFormChange('roleId', e.target.value)}
                                         required
                                     >
-                                        <option value="">— Sélectionner un rôle —</option>
+                                        <option value="">{t('users.select_role')}</option>
                                         {roles.map((r) => (
                                             <option key={r.id} value={r.id}>{r.name}</option>
                                         ))}
@@ -304,10 +336,10 @@ const UserManagementPage: React.FC = () => {
                             </div>
                             <div className="dos-modal-actions">
                                 <button type="button" className="dos-btn-cancel" onClick={() => setShowCreateModal(false)} disabled={creating}>
-                                    Annuler
+                                    {t('common.cancel')}
                                 </button>
                                 <button type="submit" className="dos-btn-save" disabled={creating}>
-                                    {creating ? 'Création...' : 'Créer le compte'}
+                                    {creating ? t('users.creating') : t('users.create_btn')}
                                 </button>
                             </div>
                         </form>

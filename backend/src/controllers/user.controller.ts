@@ -101,9 +101,6 @@ export class UserController {
     static async getRoles(_req: Request, res: Response): Promise<void> {
         try {
             const roles = await prisma.role.findMany({
-                where: {
-                    name: { not: 'Admin' },
-                },
                 select: {
                     id: true,
                     name: true,
@@ -144,10 +141,6 @@ export class UserController {
                 res.status(400).json({ error: 'Rôle invalide' });
                 return;
             }
-            if (role.name === 'Admin') {
-                res.status(403).json({ error: 'Impossible de créer un compte Admin' });
-                return;
-            }
 
             const passwordHash = await AuthService.hashPassword(password);
 
@@ -185,6 +178,46 @@ export class UserController {
         } catch (error) {
             console.error('Error creating user:', error);
             res.status(500).json({ error: 'Failed to create user' });
+        }
+    }
+
+    /**
+     * Delete a user (admin only)
+     * DELETE /api/v1/users/:id
+     */
+    static async deleteUser(req: Request, res: Response): Promise<void> {
+        try {
+            const id = req.params.id as string;
+            const currentUserId = (req as any).userId;
+
+            // Prevent self-deletion
+            if (id === currentUserId) {
+                res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+                return;
+            }
+
+            const user = await prisma.user.findUnique({
+                where: { id },
+                include: { role: true },
+            });
+
+            if (!user) {
+                res.status(404).json({ error: 'Utilisateur non trouvé' });
+                return;
+            }
+
+            // Prevent deleting other admins
+            if (user.role.name === 'Admin') {
+                res.status(403).json({ error: 'Impossible de supprimer un administrateur' });
+                return;
+            }
+
+            await prisma.user.delete({ where: { id } });
+
+            res.json({ message: 'Utilisateur supprimé avec succès' });
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            res.status(500).json({ error: 'Failed to delete user' });
         }
     }
 }

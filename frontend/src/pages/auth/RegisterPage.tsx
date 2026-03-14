@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage, LanguageToggle } from '../../i18n/i18n';
+import { ThemeToggle } from '../../theme/ThemeContext';
 import userService from '../../services/user.service';
 import type { RoleOption } from '../../services/user.service';
 import './AuthPages.css';
@@ -17,9 +19,10 @@ const RegisterPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
+    const { t } = useLanguage();
 
     useEffect(() => {
-        userService.getRoles().then(setRoles).catch(console.error);
+        userService.getRoles().then((r) => setRoles(r.filter((role) => role.name !== 'Admin'))).catch(console.error);
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -27,17 +30,17 @@ const RegisterPage: React.FC = () => {
         setError('');
 
         if (password !== confirmPassword) {
-            setError('Passwords do not match');
+            setError(t('register.passwords_mismatch'));
             return;
         }
 
         if (password.length < 6) {
-            setError('Password must be at least 6 characters');
+            setError(t('register.password_min'));
             return;
         }
 
         if (!roleId) {
-            setError('Please select a role');
+            setError(t('register.select_role_error'));
             return;
         }
 
@@ -47,7 +50,7 @@ const RegisterPage: React.FC = () => {
             await register(email, password, firstName, lastName, roleId);
             navigate('/');
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Registration failed. Please try again.');
+            setError(err.response?.data?.error || t('register.failed'));
         } finally {
             setLoading(false);
         }
@@ -62,9 +65,13 @@ const RegisterPage: React.FC = () => {
             </div>
 
             <div className="auth-card">
-                <div className="auth-header">
-                    <h1 className="auth-title">Create Account</h1>
-                    <p className="auth-subtitle">Join POI FTTH Management System</p>
+                <div className="auth-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                        <h1 className="auth-title">{t('register.title')}</h1>
+                        <p className="auth-subtitle">{t('register.subtitle')}</p>
+                    </div>
+                    <LanguageToggle />
+                    <ThemeToggle />
                 </div>
 
                 <form onSubmit={handleSubmit} className="auth-form">
@@ -79,7 +86,7 @@ const RegisterPage: React.FC = () => {
 
                     <div className="form-row">
                         <div className="form-group">
-                            <label htmlFor="firstName">First Name</label>
+                            <label htmlFor="firstName">{t('register.first_name')}</label>
                             <input
                                 id="firstName"
                                 type="text"
@@ -92,7 +99,7 @@ const RegisterPage: React.FC = () => {
                         </div>
 
                         <div className="form-group">
-                            <label htmlFor="lastName">Last Name</label>
+                            <label htmlFor="lastName">{t('register.last_name')}</label>
                             <input
                                 id="lastName"
                                 type="text"
@@ -106,7 +113,7 @@ const RegisterPage: React.FC = () => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="email">Email Address</label>
+                        <label htmlFor="email">{t('register.email')}</label>
                         <input
                             id="email"
                             type="email"
@@ -119,7 +126,7 @@ const RegisterPage: React.FC = () => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="role">Role</label>
+                        <label htmlFor="role">{t('register.role')}</label>
                         <select
                             id="role"
                             value={roleId}
@@ -127,7 +134,7 @@ const RegisterPage: React.FC = () => {
                             required
                             className="auth-select"
                         >
-                            <option value="">— Select a role —</option>
+                            <option value="">{t('register.select_role')}</option>
                             {roles.map((r) => (
                                 <option key={r.id} value={r.id}>{r.name}</option>
                             ))}
@@ -135,7 +142,7 @@ const RegisterPage: React.FC = () => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="password">Password</label>
+                        <label htmlFor="password">{t('register.password')}</label>
                         <input
                             id="password"
                             type="password"
@@ -149,7 +156,7 @@ const RegisterPage: React.FC = () => {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="confirmPassword">Confirm Password</label>
+                        <label htmlFor="confirmPassword">{t('register.confirm_password')}</label>
                         <input
                             id="confirmPassword"
                             type="password"
@@ -166,19 +173,19 @@ const RegisterPage: React.FC = () => {
                         {loading ? (
                             <>
                                 <span className="spinner-small"></span>
-                                Creating account...
+                                {t('register.submitting')}
                             </>
                         ) : (
-                            'Create Account'
+                            t('register.submit')
                         )}
                     </button>
                 </form>
 
                 <div className="auth-footer">
                     <p>
-                        Already have an account?{' '}
+                        {t('register.has_account')}{' '}
                         <Link to="/login" className="auth-link">
-                            Sign in
+                            {t('register.sign_in')}
                         </Link>
                     </p>
                 </div>

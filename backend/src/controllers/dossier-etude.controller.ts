@@ -16,6 +16,99 @@ const DEFAULT_COLUMN_CONFIG = [
     { key: 'CTC', label: 'CTC', type: 'text', required: false },
 ];
 
+// Mapping from lowercase ETAT values → SuiviEtude field names
+const ETAT_TO_FIELD: Record<string, string> = {
+    '01 vt a faire': 'vtAFaire',
+    '01.2 a remonter': 'aRemonter',
+    '01.3 etude cdc': 'vtAFaire',
+    '02 retour vt': 'retourVt',
+    '03 dossier a reprendre': 'dossAReprendre',
+    '04 dossier a monter': 'dossAMonter',
+    '05 at info caf ref': 'attInfosCafRef',
+    '06 at devis client': 'attDevisClient',
+    '07 at trvx client': 'attTravauxClient',
+    '08 at comac/capft': 'attComacCafft',
+    '09 at devis orange/rip': 'attDevisOrangeRip',
+    '10 at pv': 'attPv',
+    '11 at dta': 'attDta',
+    '12 at maj si': 'attMajSi',
+    '13 etat 5': 'etat5',
+    '14 poi en travaux': 'poiEnTravaux',
+    '14.1 at retour doe': 'atRetourDoe',
+    '15 poi factu': 'recolAFaire',
+    '16 dossier paye': 'recolAFaire', // maps to same field or adjust as needed
+};
+
+/**
+ * Recalculate all etat-based counts for a sector from actual dossier data
+ * and update the SuiviEtude row.
+ */
+async function recalcSectorCounts(secteur: string) {
+    try {
+        const dossiers = await prisma.dossierEtude.findMany({ where: { secteur } });
+        const total = dossiers.length;
+
+        // Initialize counters
+        const counts: Record<string, number> = {};
+        for (const field of Object.values(ETAT_TO_FIELD)) {
+            counts[field] = 0;
+        }
+
+        // Find the etat column key from the sector's column config
+        const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
+        const colConfig = (sector?.columnConfig as any[]) || DEFAULT_COLUMN_CONFIG;
+        const etatCol = colConfig.find(
+            (c: any) => c.key?.toLowerCase() === 'etat' || c.label?.toLowerCase() === 'etat'
+        );
+        const etatKey = etatCol?.key || 'ETAT';
+
+        // Count dossiers per etat value
+        for (const d of dossiers) {
+            const data = d.data as Record<string, any>;
+            // Try the etat key, then label, then case-insensitive match
+            let etatVal = data[etatKey];
+            if (etatVal === undefined) {
+                for (const key of Object.keys(data)) {
+                    if (key.toLowerCase() === 'etat') { etatVal = data[key]; break; }
+                }
+            }
+            if (!etatVal) continue;
+            const lower = String(etatVal).toLowerCase().trim();
+            const field = ETAT_TO_FIELD[lower];
+            if (field) counts[field] = (counts[field] || 0) + 1;
+        }
+
+        // Update the SuiviEtude row
+        if (sector) {
+            await prisma.suiviEtude.update({
+                where: { secteur },
+                data: {
+                    nbDossiers: total,
+                    vtAFaire: counts.vtAFaire || 0,
+                    aRemonter: counts.aRemonter || 0,
+                    retourVt: counts.retourVt || 0,
+                    dossAReprendre: counts.dossAReprendre || 0,
+                    dossAMonter: counts.dossAMonter || 0,
+                    attInfosCafRef: counts.attInfosCafRef || 0,
+                    attDevisClient: counts.attDevisClient || 0,
+                    attTravauxClient: counts.attTravauxClient || 0,
+                    attComacCafft: counts.attComacCafft || 0,
+                    attDevisOrangeRip: counts.attDevisOrangeRip || 0,
+                    attPv: counts.attPv || 0,
+                    attDta: counts.attDta || 0,
+                    attMajSi: counts.attMajSi || 0,
+                    etat5: counts.etat5 || 0,
+                    poiEnTravaux: counts.poiEnTravaux || 0,
+                    atRetourDoe: counts.atRetourDoe || 0,
+                    recolAFaire: counts.recolAFaire || 0,
+                },
+            });
+        }
+    } catch (err) {
+        console.error('recalcSectorCounts error:', err);
+    }
+}
+
 export class DossierEtudeController {
     /**
      * GET /api/v1/dossier-etudes?secteur=MEN-ROD
@@ -97,6 +190,9 @@ export class DossierEtudeController {
                 },
             });
 
+            // Recalculate global vue counts
+            await recalcSectorCounts(secteur.trim());
+
             res.status(201).json({ message: 'Dossier created', dossier });
         } catch (error: any) {
             console.error('Create dossier error:', error);
@@ -123,6 +219,9 @@ export class DossierEtudeController {
                 data: { data: rowData || {} },
             });
 
+            // Recalculate global vue counts
+            await recalcSectorCounts(existing.secteur);
+
             res.json({ message: 'Dossier updated', dossier });
         } catch (error: any) {
             console.error('Update dossier error:', error);
@@ -144,10 +243,30 @@ export class DossierEtudeController {
             }
 
             await prisma.dossierEtude.delete({ where: { id } });
+
+            // Recalculate global vue counts
+            await recalcSectorCounts(existing.secteur);
+
             res.json({ message: 'Dossier deleted' });
         } catch (error: any) {
             console.error('Delete dossier error:', error);
             res.status(500).json({ error: 'Failed to delete dossier' });
+        }
+    }
+    /**
+     * POST /api/v1/dossier-etudes/recalc-all
+     * Recalculate all sector counts from actual dossier data
+     */
+    async recalcAll(_req: Request, res: Response): Promise<void> {
+        try {
+            const sectors = await prisma.suiviEtude.findMany();
+            for (const sector of sectors) {
+                await recalcSectorCounts(sector.secteur);
+            }
+            res.json({ message: `Recalculated counts for ${sectors.length} sectors` });
+        } catch (error: any) {
+            console.error('RecalcAll error:', error);
+            res.status(500).json({ error: 'Failed to recalculate' });
         }
     }
 }
