@@ -56,6 +56,34 @@ class DossierEtudeService {
     async delete(id: string): Promise<void> {
         await apiClient.delete(`/dossier-etudes/${id}`);
     }
+
+    async exportExcel(secteur: string): Promise<void> {
+        const response = await apiClient.get(`/excel/export`, {
+            params: { secteur },
+            responseType: 'blob',
+        });
+        const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${secteur.replace(/[^a-zA-Z0-9_-]/g, '_')}_export.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+
+    async importExcel(secteur: string, file: File): Promise<{ imported: number }> {
+        const formData = new FormData();
+        formData.append('secteur', secteur);
+        formData.append('file', file);
+        const response = await apiClient.post('/excel/import', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    }
 }
 
 export default new DossierEtudeService();

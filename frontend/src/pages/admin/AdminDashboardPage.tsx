@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage, LanguageToggle } from '../../i18n/i18n';
@@ -74,6 +74,42 @@ const AdminDashboardPage: React.FC = () => {
     const [editingRow, setEditingRow] = useState<SuiviEtudeRow | null>(null);
     const [formData, setFormData] = useState<Record<string, string | number>>(defaultFormData);
     const [submitting, setSubmitting] = useState(false);
+
+    // Full Excel import/export
+    const [exporting, setExporting] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const importFileRef = useRef<HTMLInputElement>(null);
+
+    const handleExportFull = async () => {
+        setExporting(true);
+        try {
+            await suiviEtudeService.exportFull();
+        } catch {
+            alert('Échec de l\'export Excel');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleImportFull = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!window.confirm('⚠️ Cela va remplacer TOUTES les données existantes (secteurs + dossiers). Continuer ?')) {
+            if (importFileRef.current) importFileRef.current.value = '';
+            return;
+        }
+        setImporting(true);
+        try {
+            const result = await suiviEtudeService.importFull(file);
+            alert(`✅ Import terminé: ${result.secteursImported} secteurs, ${result.totalDossiers} dossiers`);
+            fetchData();
+        } catch {
+            alert('Échec de l\'import Excel');
+        } finally {
+            setImporting(false);
+            if (importFileRef.current) importFileRef.current.value = '';
+        }
+    };
 
     // Filter rows by allowed secteurs
     const filteredRows = allowedSecteurs.length > 0
@@ -182,6 +218,19 @@ const AdminDashboardPage: React.FC = () => {
                 <div className="header-actions">
                     <ThemeToggle />
                     <LanguageToggle />
+                    <button className="btn-export-excel" onClick={handleExportFull} disabled={exporting}>
+                        {exporting ? '⏳...' : '📥 Exporter Excel'}
+                    </button>
+                    <button className="btn-import-excel" onClick={() => importFileRef.current?.click()} disabled={importing}>
+                        {importing ? '⏳ Import...' : '📤 Importer Excel'}
+                    </button>
+                    <input
+                        type="file"
+                        ref={importFileRef}
+                        accept=".xlsx,.xls"
+                        style={{ display: 'none' }}
+                        onChange={handleImportFull}
+                    />
                     {isAdmin && (
                         <button className="btn-add" onClick={() => navigate('/admin/users')}>
                             {t('dashboard.user_mgmt')}

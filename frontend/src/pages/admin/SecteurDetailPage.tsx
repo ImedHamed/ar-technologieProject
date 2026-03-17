@@ -202,6 +202,9 @@ const SecteurDetailPage: React.FC = () => {
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
+    // Group by column
+    const [groupByKey, setGroupByKey] = useState<string | null>(null);
+
     // Column resizing
     // Load persisted column widths from localStorage
     const storageKey = `colWidths_${sectorName}`;
@@ -325,6 +328,27 @@ const SecteurDetailPage: React.FC = () => {
             return sortDir === 'asc' ? cmp : -cmp;
         });
     }, [dossiers, sortKey, sortDir, columns]);
+
+    // Group sorted dossiers by selected column
+    const groupedDossiers = React.useMemo(() => {
+        if (!groupByKey) return null;
+        const col = columns.find(c => c.key === groupByKey);
+        if (!col) return null;
+        const groups: { label: string; dossiers: DossierEtude[] }[] = [];
+        const groupMap = new Map<string, DossierEtude[]>();
+        for (const d of sortedDossiers) {
+            const val = getDataValue(d.data, col);
+            const label = (val === null || val === undefined || val === '') ? '— Vide —' : String(val);
+            if (!groupMap.has(label)) {
+                groupMap.set(label, []);
+            }
+            groupMap.get(label)!.push(d);
+        }
+        for (const [label, dossiers] of groupMap) {
+            groups.push({ label, dossiers });
+        }
+        return groups;
+    }, [sortedDossiers, groupByKey, columns]);
 
     // Fetch sector info to get the sector ID
     const fetchSectorId = useCallback(async () => {
@@ -502,6 +526,38 @@ const SecteurDetailPage: React.FC = () => {
 
     const handlePageChange = (page: number) => fetchData(page);
 
+    // ─── Excel Import / Export ────────────────────────────────
+    const [exporting, setExporting] = useState(false);
+    const [importing, setImporting] = useState(false);
+    const importFileRef = useRef<HTMLInputElement>(null);
+
+    const handleExportExcel = async () => {
+        setExporting(true);
+        try {
+            await dossierEtudeService.exportExcel(sectorName);
+        } catch {
+            alert('Échec de l\'export Excel');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImporting(true);
+        try {
+            const result = await dossierEtudeService.importExcel(sectorName, file);
+            alert(`✅ ${result.imported} dossiers importés avec succès`);
+            fetchData(1);
+        } catch {
+            alert('Échec de l\'import Excel');
+        } finally {
+            setImporting(false);
+            if (importFileRef.current) importFileRef.current.value = '';
+        }
+    };
+
     const pageButtons = () => {
         const pages: number[] = [];
         const total = pagination.totalPages;
@@ -540,6 +596,19 @@ const SecteurDetailPage: React.FC = () => {
                 <div className="header-right">
                     {canEdit && (
                         <>
+                            <button className="btn-export-excel" onClick={handleExportExcel} disabled={exporting}>
+                                {exporting ? '⏳...' : '📥 Exporter Excel'}
+                            </button>
+                            <button className="btn-import-excel" onClick={() => importFileRef.current?.click()} disabled={importing}>
+                                {importing ? '⏳ Import...' : '📤 Importer Excel'}
+                            </button>
+                            <input
+                                type="file"
+                                ref={importFileRef}
+                                accept=".xlsx,.xls"
+                                style={{ display: 'none' }}
+                                onChange={handleImportExcel}
+                            />
                             <button className="btn-manage-cols" onClick={openColumnManager}>
                                 {t('sector.manage_cols')}
                             </button>
@@ -572,6 +641,19 @@ const SecteurDetailPage: React.FC = () => {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                 />
+                <div className="group-by-wrapper">
+                    <label className="group-by-label">📊 Grouper par :</label>
+                    <select
+                        className="group-by-select"
+                        value={groupByKey || ''}
+                        onChange={(e) => setGroupByKey(e.target.value || null)}
+                    >
+                        <option value="">— Aucun —</option>
+                        {columns.map((col) => (
+                            <option key={col.key} value={col.key}>{col.label}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {/* Dynamic Table */}
@@ -631,97 +713,108 @@ const SecteurDetailPage: React.FC = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                sortedDossiers.map((d) => (
-                                    <tr key={d.id}>
-                                        {columns.map((col) => {
-                                            const cellKey = `${d.id}_${col.key}`;
-                                            const isEditing = inlineEditKey === cellKey;
-                                            const isSaving = inlineSaving === cellKey;
-
-                                            return (
-                                                <td key={col.key} title={String(getDataValue(d.data, col) || '')}>
-                                                    {isEditing && canEdit ? (
-                                                        // ── Inline edit mode ──
-                                                        isEtatColumn(col) ? (
-                                                            <select
-                                                                className="inline-etat-select"
-                                                                value={inlineEditValue}
-                                                                onChange={(e) => { setInlineEditValue(e.target.value); handleInlineSave(d, col, e.target.value); }}
-                                                                onBlur={() => setInlineEditKey(null)}
-                                                                autoFocus
-                                                                style={{ maxWidth: '180px', fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2' }}
-                                                            >
-                                                                <option value="">— Sélectionner —</option>
-                                                                {ETAT_OPTIONS.map((opt) => (
-                                                                    <option key={opt} value={opt}>{opt}</option>
-                                                                ))}
-                                                            </select>
-                                                        ) : col.type === 'date' ? (
-                                                            <input
-                                                                type="date"
-                                                                className="inline-date-input"
-                                                                value={inlineEditValue}
-                                                                onChange={(e) => { setInlineEditValue(e.target.value); handleInlineSave(d, col, e.target.value); }}
-                                                                onBlur={() => setInlineEditKey(null)}
-                                                                autoFocus
-                                                                style={{ fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2', maxWidth: '150px' }}
-                                                            />
-                                                        ) : col.type === 'textarea' ? (
-                                                            <textarea
-                                                                className="inline-textarea-input"
-                                                                value={inlineEditValue}
-                                                                onChange={(e) => setInlineEditValue(e.target.value)}
-                                                                onBlur={() => handleInlineSave(d, col, inlineEditValue)}
-                                                                onKeyDown={(e) => { if (e.key === 'Escape') setInlineEditKey(null); }}
-                                                                autoFocus
-                                                                rows={3}
-                                                                style={{ fontSize: '0.78rem', padding: '4px', borderRadius: '4px', border: '1.5px solid #1976d2', width: '100%', minWidth: '250px', resize: 'vertical' }}
-                                                            />
-                                                        ) : (
-                                                            <input
-                                                                type={col.type === 'number' ? 'number' : 'text'}
-                                                                className="inline-text-input"
-                                                                value={inlineEditValue}
-                                                                onChange={(e) => setInlineEditValue(e.target.value)}
-                                                                onBlur={() => handleInlineSave(d, col, inlineEditValue)}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
-                                                                    if (e.key === 'Escape') setInlineEditKey(null);
-                                                                }}
-                                                                autoFocus
-                                                                style={{ fontSize: '0.78rem', padding: '2px 6px', borderRadius: '4px', border: '1.5px solid #1976d2', width: '100%' }}
-                                                            />
-                                                        )
-                                                    ) : isPoiColumn(col) && getDataValue(d.data, col) ? (
-                                                        <a
-                                                            href={`${POI_BASE_URL}${getDataValue(d.data, col)}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="poi-link"
-                                                            onDoubleClick={(e) => { e.preventDefault(); if (canEdit) startInlineEdit(d, col); }}
-                                                        >
-                                                            {isSaving ? '⏳...' : `🔗 ${getCellValue(d.data, col)}`}
-                                                        </a>
-                                                    ) : (
-                                                        <span
-                                                            style={{ ...getCellStyle(col, getDataValue(d.data, col), d.data, columns), cursor: canEdit ? 'pointer' : 'default' }}
-                                                            onDoubleClick={() => { if (canEdit) startInlineEdit(d, col); }}
-                                                        >
-                                                            {isSaving ? '⏳...' : getCellValue(d.data, col)}
-                                                        </span>
-                                                    )}
+                                (groupedDossiers || [{ label: '', dossiers: sortedDossiers }]).map((group, gi) => (
+                                    <React.Fragment key={`group-${gi}`}>
+                                        {groupByKey && (
+                                            <tr className="group-header-row">
+                                                <td colSpan={columns.length + (canEdit ? 1 : 0)}>
+                                                    <span className="group-header-label">{group.label}</span>
+                                                    <span className="group-header-count">{group.dossiers.length}</span>
                                                 </td>
-                                            );
-                                        })}
-                                        {canEdit && (
-                                            <td>
-                                                <div className="row-actions">
-                                                    <button className="btn-row-action btn-row-edit" onClick={() => handleEdit(d)}>✏️</button>
-                                                    <button className="btn-row-action btn-row-delete" onClick={() => handleDelete(d)}>🗑️</button>
-                                                </div>
-                                            </td>
+                                            </tr>
                                         )}
-                                    </tr>
+                                        {group.dossiers.map((d) => (
+                                            <tr key={d.id}>
+                                                {columns.map((col) => {
+                                                    const cellKey = `${d.id}_${col.key}`;
+                                                    const isEditing = inlineEditKey === cellKey;
+                                                    const isSaving = inlineSaving === cellKey;
+
+                                                    return (
+                                                        <td key={col.key} title={String(getDataValue(d.data, col) || '')}>
+                                                            {isEditing && canEdit ? (
+                                                                isEtatColumn(col) ? (
+                                                                    <select
+                                                                        className="inline-etat-select"
+                                                                        value={inlineEditValue}
+                                                                        onChange={(e) => { setInlineEditValue(e.target.value); handleInlineSave(d, col, e.target.value); }}
+                                                                        onBlur={() => setInlineEditKey(null)}
+                                                                        autoFocus
+                                                                        style={{ maxWidth: '180px', fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2' }}
+                                                                    >
+                                                                        <option value="">— Sélectionner —</option>
+                                                                        {ETAT_OPTIONS.map((opt) => (
+                                                                            <option key={opt} value={opt}>{opt}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                ) : col.type === 'date' ? (
+                                                                    <input
+                                                                        type="date"
+                                                                        className="inline-date-input"
+                                                                        value={inlineEditValue}
+                                                                        onChange={(e) => { setInlineEditValue(e.target.value); handleInlineSave(d, col, e.target.value); }}
+                                                                        onBlur={() => setInlineEditKey(null)}
+                                                                        autoFocus
+                                                                        style={{ fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2', maxWidth: '150px' }}
+                                                                    />
+                                                                ) : col.type === 'textarea' ? (
+                                                                    <textarea
+                                                                        className="inline-textarea-input"
+                                                                        value={inlineEditValue}
+                                                                        onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                        onBlur={() => handleInlineSave(d, col, inlineEditValue)}
+                                                                        onKeyDown={(e) => { if (e.key === 'Escape') setInlineEditKey(null); }}
+                                                                        autoFocus
+                                                                        rows={3}
+                                                                        style={{ fontSize: '0.78rem', padding: '4px', borderRadius: '4px', border: '1.5px solid #1976d2', width: '100%', minWidth: '250px', resize: 'vertical' }}
+                                                                    />
+                                                                ) : (
+                                                                    <input
+                                                                        type={col.type === 'number' ? 'number' : 'text'}
+                                                                        className="inline-text-input"
+                                                                        value={inlineEditValue}
+                                                                        onChange={(e) => setInlineEditValue(e.target.value)}
+                                                                        onBlur={() => handleInlineSave(d, col, inlineEditValue)}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
+                                                                            if (e.key === 'Escape') setInlineEditKey(null);
+                                                                        }}
+                                                                        autoFocus
+                                                                        style={{ fontSize: '0.78rem', padding: '2px 6px', borderRadius: '4px', border: '1.5px solid #1976d2', width: '100%' }}
+                                                                    />
+                                                                )
+                                                            ) : isPoiColumn(col) && getDataValue(d.data, col) ? (
+                                                                <a
+                                                                    href={`${POI_BASE_URL}${getDataValue(d.data, col)}`}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="poi-link"
+                                                                    onDoubleClick={(e) => { e.preventDefault(); if (canEdit) startInlineEdit(d, col); }}
+                                                                >
+                                                                    {isSaving ? '⏳...' : `🔗 ${getCellValue(d.data, col)}`}
+                                                                </a>
+                                                            ) : (
+                                                                <span
+                                                                    style={{ ...getCellStyle(col, getDataValue(d.data, col), d.data, columns), cursor: canEdit ? 'pointer' : 'default' }}
+                                                                    onDoubleClick={() => { if (canEdit) startInlineEdit(d, col); }}
+                                                                >
+                                                                    {isSaving ? '⏳...' : getCellValue(d.data, col)}
+                                                                </span>
+                                                            )}
+                                                        </td>
+                                                    );
+                                                })}
+                                                {canEdit && (
+                                                    <td>
+                                                        <div className="row-actions">
+                                                            <button className="btn-row-action btn-row-edit" onClick={() => handleEdit(d)}>✏️</button>
+                                                            <button className="btn-row-action btn-row-delete" onClick={() => handleDelete(d)}>🗑️</button>
+                                                        </div>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
                                 ))
                             )}
                         </tbody>

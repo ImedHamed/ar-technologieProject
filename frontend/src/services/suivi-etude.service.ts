@@ -82,6 +82,30 @@ class SuiviEtudeService {
         const response = await apiClient.put<{ row: SuiviEtudeRow }>(`/suivi-etudes/${id}/columns`, { columnConfig });
         return response.data.row;
     }
+
+    async exportFull(): Promise<void> {
+        const response = await apiClient.get('/excel/export-full', { responseType: 'blob' });
+        const blob = new Blob([response.data], {
+            type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Suivi_etudes_export.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+
+    async importFull(file: File): Promise<{ secteursImported: number; totalDossiers: number }> {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiClient.post('/excel/import-full', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    }
 }
 
 export default new SuiviEtudeService();

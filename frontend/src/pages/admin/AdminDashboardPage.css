@@ -58,6 +58,46 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
+.btn-export-excel,
+.btn-import-excel {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-export-excel {
+    background: #1e88e5;
+    color: #fff;
+}
+
+.btn-export-excel:hover:not(:disabled) {
+    background: #1565c0;
+    box-shadow: 0 4px 12px rgba(30, 136, 229, 0.3);
+}
+
+.btn-import-excel {
+    background: #00897b;
+    color: #fff;
+}
+
+.btn-import-excel:hover:not(:disabled) {
+    background: #00695c;
+    box-shadow: 0 4px 12px rgba(0, 137, 123, 0.3);
+}
+
+.btn-export-excel:disabled,
+.btn-import-excel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* ---- Stats Cards (Creative Tim style) ---- */
 .stats-row {
     display: flex;

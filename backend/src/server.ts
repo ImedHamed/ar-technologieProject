@@ -7,6 +7,7 @@ import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import suiviEtudeRoutes from './routes/suivi-etude.routes';
 import dossierEtudeRoutes from './routes/dossier-etude.routes';
+import excelRoutes from './routes/excel.routes';
 
 // Load environment variables
 dotenv.config();
@@ -62,6 +63,7 @@ app.use('/api/v1/users', userRoutes);
 // Suivi études routes
 app.use('/api/v1/suivi-etudes', suiviEtudeRoutes);
 app.use('/api/v1/dossier-etudes', dossierEtudeRoutes);
+app.use('/api/v1/excel', excelRoutes);
 
 
 // Error handling middleware
