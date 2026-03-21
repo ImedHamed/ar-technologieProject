@@ -20,17 +20,20 @@ const DEFAULT_COLUMN_CONFIG = [
 // Mapping from lowercase ETAT values → SuiviEtude field names (same as dossier controller)
 const ETAT_TO_FIELD: Record<string, string> = {
     '01 vt a faire': 'vtAFaire',
+    '01 at vt': 'vtAFaire',
     '01.2 a remonter': 'aRemonter',
     '01.3 etude cdc': 'vtAFaire',
     '02 retour vt': 'retourVt',
     '03 dossier a reprendre': 'dossAReprendre',
     '04 dossier a monter': 'dossAMonter',
     '05 at info caf ref': 'attInfosCafRef',
+    '05.1 etu transmise': 'attInfosCafRef',
     '06 at devis client': 'attDevisClient',
     '07 at trvx client': 'attTravauxClient',
     '08 at comac/capft': 'attComacCafft',
     '09 at devis orange/rip': 'attDevisOrangeRip',
     '10 at pv': 'attPv',
+    '10.1 att dt': 'attPv',
     '11 at dta': 'attDta',
     '12 at maj si': 'attMajSi',
     '13 etat 5': 'etat5',
@@ -38,6 +41,22 @@ const ETAT_TO_FIELD: Record<string, string> = {
     '14.1 at retour doe': 'atRetourDoe',
     '15 poi factu': 'recolAFaire',
     '16 dossier paye': 'recolAFaire',
+    // SPI AQ-specific étude mapping
+    '05 at pv': 'attPv',
+    '05.1 at dta': 'attDta',
+    '06 at maj si': 'attMajSi',
+    '07 at info caf ref': 'attInfosCafRef',
+    '08 at devis orange/rip': 'attDevisOrangeRip',
+    '09 poi en travaux': 'poiEnTravaux',
+    '09.1 att doe': 'atRetourDoe',
+    // COMAC CAPFT
+    '01 dossier à monter': 'dossAMonter',
+    '04 dossier à reprendre': 'dossAReprendre',
+    '05 dossier terminer': 'etat5',
+    // SPI Bretagne
+    '01 dossier bloqué': 'dossAReprendre',
+    '02 dossier envoyé': 'dossAMonter',
+    '03 etude terminé': 'etat5',
 };
 
 /**
@@ -178,6 +197,7 @@ export class ExcelController {
     async importExcel(req: Request, res: Response): Promise<void> {
         try {
             const secteur = req.body.secteur as string;
+            const mode = (req.body.mode as string) || 'replace'; // 'add' or 'replace'
             const file = (req as any).file;
 
             if (!secteur) {
@@ -187,6 +207,11 @@ export class ExcelController {
             if (!file) {
                 res.status(400).json({ error: 'Excel file is required' });
                 return;
+            }
+
+            // In replace mode, delete existing dossiers for this sector first
+            if (mode === 'replace') {
+                await prisma.dossierEtude.deleteMany({ where: { secteur } });
             }
 
             // Get column config for this sector
@@ -237,9 +262,11 @@ export class ExcelController {
                 for (let j = 0; j < headerToKey.length; j++) {
                     const key = headerToKey[j];
                     if (!key) continue;
-                    let value = row[j];
-                    if (value === undefined || value === null) continue;
-                    dossierData[key] = String(value);
+                    const value = row[j];
+                    // Fill empty cells with "N/A"
+                    dossierData[key] = (value === undefined || value === null || String(value).trim() === '')
+                        ? 'N/A'
+                        : String(value);
                 }
 
                 if (Object.keys(dossierData).length > 0) {
@@ -254,9 +281,10 @@ export class ExcelController {
             await recalcSectorCounts(secteur);
 
             res.json({
-                message: `Successfully imported ${imported} dossiers`,
+                message: `Successfully imported ${imported} dossiers (mode: ${mode})`,
                 imported,
                 secteur,
+                mode,
             });
         } catch (error: any) {
             console.error('Excel import error:', error);
@@ -393,19 +421,22 @@ export class ExcelController {
     async importFull(req: Request, res: Response): Promise<void> {
         try {
             const file = (req as any).file;
+            const mode = (req.body?.mode as string) || 'replace'; // 'add' or 'replace'
             if (!file) {
                 res.status(400).json({ error: 'Excel file is required' });
                 return;
             }
 
             const wb = XLSX.read(file.buffer, { type: 'buffer' });
-            console.log(`📋 Sheets found: ${wb.SheetNames.join(', ')}`);
+            console.log(`📋 Sheets found: ${wb.SheetNames.join(', ')} (mode: ${mode})`);
 
             // ── 1. Import VUE GLOBAL ──
             const wsVue = wb.Sheets['VUE GLOBAL'];
             let secteursImported = 0;
             if (wsVue) {
-                await prisma.suiviEtude.deleteMany();
+                if (mode === 'replace') {
+                    await prisma.suiviEtude.deleteMany();
+                }
                 const vueRows = XLSX.utils.sheet_to_json<any[]>(wsVue, { header: 1 });
 
                 for (let i = 1; i < vueRows.length; i++) {
@@ -415,30 +446,40 @@ export class ExcelController {
                     if (!secteur) continue;
                     if (ExcelController.VUE_GLOBAL_SKIP.some(s => secteur.toUpperCase().includes(s))) continue;
 
-                    await prisma.suiviEtude.create({
-                        data: {
-                            secteur,
-                            nbDossiers: parseInt(row[1]) || 0,
-                            dreKo: parseInt(row[2]) || 0,
-                            vtAFaire: parseInt(row[3]) || 0,
-                            aRemonter: parseInt(row[4]) || 0,
-                            retourVt: parseInt(row[5]) || 0,
-                            dossAReprendre: parseInt(row[6]) || 0,
-                            dossAMonter: parseInt(row[7]) || 0,
-                            attInfosCafRef: parseInt(row[8]) || 0,
-                            attDevisOrangeRip: parseInt(row[9]) || 0,
-                            attDevisClient: parseInt(row[10]) || 0,
-                            attTravauxClient: parseInt(row[11]) || 0,
-                            attPv: parseInt(row[12]) || 0,
-                            attDta: parseInt(row[13]) || 0,
-                            attComacCafft: parseInt(row[14]) || 0,
-                            attMajSi: parseInt(row[15]) || 0,
-                            poiEnTravaux: parseInt(row[16]) || 0,
-                            atRetourDoe: parseInt(row[17]) || 0,
-                            etat5: parseInt(row[19]) || 0,
-                            columnConfig: DEFAULT_COLUMN_CONFIG,
-                        },
-                    });
+                    const secteurData = {
+                        nbDossiers: parseInt(row[1]) || 0,
+                        dreKo: parseInt(row[2]) || 0,
+                        vtAFaire: parseInt(row[3]) || 0,
+                        aRemonter: parseInt(row[4]) || 0,
+                        retourVt: parseInt(row[5]) || 0,
+                        dossAReprendre: parseInt(row[6]) || 0,
+                        dossAMonter: parseInt(row[7]) || 0,
+                        attInfosCafRef: parseInt(row[8]) || 0,
+                        attDevisOrangeRip: parseInt(row[9]) || 0,
+                        attDevisClient: parseInt(row[10]) || 0,
+                        attTravauxClient: parseInt(row[11]) || 0,
+                        attPv: parseInt(row[12]) || 0,
+                        attDta: parseInt(row[13]) || 0,
+                        attComacCafft: parseInt(row[14]) || 0,
+                        attMajSi: parseInt(row[15]) || 0,
+                        poiEnTravaux: parseInt(row[16]) || 0,
+                        atRetourDoe: parseInt(row[17]) || 0,
+                        etat5: parseInt(row[19]) || 0,
+                        columnConfig: DEFAULT_COLUMN_CONFIG,
+                    };
+
+                    if (mode === 'add') {
+                        // In add mode, upsert: create if new, update if exists
+                        await prisma.suiviEtude.upsert({
+                            where: { secteur },
+                            create: { secteur, ...secteurData },
+                            update: secteurData,
+                        });
+                    } else {
+                        await prisma.suiviEtude.create({
+                            data: { secteur, ...secteurData },
+                        });
+                    }
                     secteursImported++;
                 }
 
@@ -470,7 +511,9 @@ export class ExcelController {
             }
 
             // ── 2. Import dossier sheets (all sheets except VUE GLOBAL) ──
-            await prisma.dossierEtude.deleteMany();
+            if (mode === 'replace') {
+                await prisma.dossierEtude.deleteMany();
+            }
             let totalDossiers = 0;
 
             for (const sheetName of wb.SheetNames) {
@@ -528,7 +571,12 @@ export class ExcelController {
                         const header = headers[j];
                         if (!header) continue;
                         let value = row[j];
-                        if (value === undefined || value === null) continue;
+
+                        // Fill empty cells with "N/A"
+                        if (value === undefined || value === null || String(value).trim() === '') {
+                            dossierData[header] = 'N/A';
+                            continue;
+                        }
 
                         // Convert Excel date numbers
                         const lowerHeader = header.toLowerCase();
@@ -563,9 +611,10 @@ export class ExcelController {
             }
 
             res.json({
-                message: `Import complet: ${secteursImported} secteurs, ${totalDossiers} dossiers`,
+                message: `Import complet (${mode}): ${secteursImported} secteurs, ${totalDossiers} dossiers`,
                 secteursImported,
                 totalDossiers,
+                mode,
             });
         } catch (error: any) {
             console.error('Full Excel import error:', error);

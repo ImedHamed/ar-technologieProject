@@ -268,8 +268,13 @@
 }
 
 @media (max-width: 640px) {
+  .auth-container {
+    padding: 1rem;
+  }
+
   .auth-card {
     padding: 2rem 1.5rem;
+    border-radius: 12px;
   }
 
   .auth-title {
@@ -278,6 +283,60 @@
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .auth-button {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+
+  /* Gradient orbs — smaller on mobile */
+  .orb-1 {
+    width: 200px;
+    height: 200px;
+  }
+
+  .orb-2 {
+    width: 180px;
+    height: 180px;
+  }
+
+  .orb-3 {
+    width: 140px;
+    height: 140px;
+  }
+
+  /* Choice buttons — stack vertically */
+  .choice-buttons {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .choice-btn {
+    padding: 0.85rem 0.6rem;
+  }
+
+  .choice-card {
+    width: 95%;
+    padding: 1.25rem;
+  }
+
+  .choice-title {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .auth-card {
+    padding: 1.5rem 1.15rem;
+  }
+
+  .auth-title {
+    font-size: 1.3rem;
+  }
+
+  .auth-subtitle {
+    font-size: 0.8rem;
   }
 }
 

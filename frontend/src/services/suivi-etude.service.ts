@@ -98,9 +98,10 @@ class SuiviEtudeService {
         document.body.removeChild(a);
     }
 
-    async importFull(file: File): Promise<{ secteursImported: number; totalDossiers: number }> {
+    async importFull(file: File, mode: 'add' | 'replace' = 'replace'): Promise<{ secteursImported: number; totalDossiers: number }> {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('mode', mode);
         const response = await apiClient.post('/excel/import-full', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });

@@ -1,0 +1,191 @@
+.import-mode-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+
+.import-mode-dialog {
+    background: var(--bg-primary, #fff);
+    color: var(--text-primary, #1a1a1a);
+    border-radius: 16px;
+    padding: 2rem 2.25rem;
+    width: 460px;
+    max-width: 92vw;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    animation: importDialogIn 0.25s ease-out;
+}
+
+@keyframes importDialogIn {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.import-mode-dialog h3 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.import-mode-dialog .dialog-subtitle {
+    margin: 0 0 1.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #6b7280);
+}
+
+.import-mode-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.import-mode-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1rem 1.15rem;
+    border: 2px solid var(--border-color, #e5e7eb);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: var(--bg-secondary, #f9fafb);
+}
+
+.import-mode-option:hover {
+    border-color: #fb8c00;
+    background: var(--bg-hover, #fff7ed);
+}
+
+.import-mode-option.selected {
+    border-color: #fb8c00;
+    background: var(--bg-hover, #fff7ed);
+    box-shadow: 0 0 0 3px rgba(251, 140, 0, 0.15);
+}
+
+.import-mode-option input[type="radio"] {
+    accent-color: #fb8c00;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.import-mode-option .option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.import-mode-option .option-label {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.import-mode-option .option-desc {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #6b7280);
+    line-height: 1.35;
+}
+
+.import-mode-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+    border-radius: 8px;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.82rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.4;
+}
+
+[data-theme="dark"] .import-mode-warning {
+    background: #3d2f00;
+    color: #ffd54f;
+    border-color: #6d5300;
+}
+
+.import-mode-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.import-mode-actions .btn-cancel {
+    padding: 0.6rem 1.35rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #d1d5db);
+    background: transparent;
+    color: var(--text-primary, #374151);
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.import-mode-actions .btn-cancel:hover {
+    background: var(--bg-secondary, #f3f4f6);
+}
+
+.import-mode-actions .btn-confirm {
+    padding: 0.6rem 1.35rem;
+    border-radius: 8px;
+    border: none;
+    background: #fb8c00;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.import-mode-actions .btn-confirm:hover {
+    background: #f57c00;
+    transform: translateY(-1px);
+}
+
+.import-mode-actions .btn-confirm.danger {
+    background: #e53935;
+}
+
+.import-mode-actions .btn-confirm.danger:hover {
+    background: #c62828;
+}
+
+@media (max-width: 480px) {
+    .import-mode-dialog {
+        width: 96vw;
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+
+    .import-mode-dialog h3 {
+        font-size: 1.1rem;
+    }
+
+    .import-mode-option {
+        padding: 0.85rem;
+    }
+
+    .import-mode-actions {
+        flex-direction: column;
+    }
+
+    .import-mode-actions .btn-cancel,
+    .import-mode-actions .btn-confirm {
+        width: 100%;
+        min-height: 48px;
+        justify-content: center;
+        text-align: center;
+    }
+}

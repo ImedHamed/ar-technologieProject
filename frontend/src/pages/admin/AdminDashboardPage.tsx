@@ -5,6 +5,8 @@ import { useLanguage, LanguageToggle } from '../../i18n/i18n';
 import { ThemeToggle } from '../../theme/ThemeContext';
 import suiviEtudeService from '../../services/suivi-etude.service';
 import type { SuiviEtudeRow, SuiviEtudeTotals } from '../../services/suivi-etude.service';
+import ImportModeDialog from '../../components/ImportModeDialog';
+import type { ImportMode } from '../../components/ImportModeDialog';
 import './AdminDashboardPage.css';
 
 // All numeric fields for the form
@@ -79,6 +81,8 @@ const AdminDashboardPage: React.FC = () => {
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const [showImportDialog, setShowImportDialog] = useState(false);
+    const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
     const handleExportFull = async () => {
         setExporting(true);
@@ -91,24 +95,36 @@ const AdminDashboardPage: React.FC = () => {
         }
     };
 
-    const handleImportFull = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Step 1: User picks a file → show the import mode dialog
+    const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (!window.confirm('⚠️ Cela va remplacer TOUTES les données existantes (secteurs + dossiers). Continuer ?')) {
-            if (importFileRef.current) importFileRef.current.value = '';
-            return;
-        }
+        setPendingImportFile(file);
+        setShowImportDialog(true);
+    };
+
+    // Step 2: User confirms mode → run the import
+    const handleImportConfirm = async (mode: ImportMode) => {
+        setShowImportDialog(false);
+        if (!pendingImportFile) return;
         setImporting(true);
         try {
-            const result = await suiviEtudeService.importFull(file);
-            alert(`✅ Import terminé: ${result.secteursImported} secteurs, ${result.totalDossiers} dossiers`);
+            const result = await suiviEtudeService.importFull(pendingImportFile, mode);
+            alert(`✅ Import terminé (${mode === 'add' ? 'ajout' : 'remplacement'}): ${result.secteursImported} secteurs, ${result.totalDossiers} dossiers`);
             fetchData();
         } catch {
             alert('Échec de l\'import Excel');
         } finally {
             setImporting(false);
+            setPendingImportFile(null);
             if (importFileRef.current) importFileRef.current.value = '';
         }
+    };
+
+    const handleImportCancel = () => {
+        setShowImportDialog(false);
+        setPendingImportFile(null);
+        if (importFileRef.current) importFileRef.current.value = '';
     };
 
     // Filter rows by allowed secteurs
@@ -233,7 +249,7 @@ const AdminDashboardPage: React.FC = () => {
                         ref={importFileRef}
                         accept=".xlsx,.xls"
                         style={{ display: 'none' }}
-                        onChange={handleImportFull}
+                        onChange={handleFileSelected}
                     />
                     {isAdmin && (
                         <button className="btn-add" onClick={() => navigate('/admin/users')}>
@@ -457,6 +473,14 @@ const AdminDashboardPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Import Mode Dialog */}
+            <ImportModeDialog
+                open={showImportDialog}
+                scope="VUE GLOBAL"
+                onConfirm={handleImportConfirm}
+                onCancel={handleImportCancel}
+            />
         </div>
     );
 };

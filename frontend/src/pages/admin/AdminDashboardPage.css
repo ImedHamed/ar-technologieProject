@@ -572,22 +572,144 @@
     min-height: 50vh;
 }
 
-@media (max-width: 768px) {
-    .admin-dashboard {
-        padding: 1rem;
-    }
-
-    .admin-dashboard-header {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: flex-start;
-    }
-
+@media (max-width: 1024px) {
     .stats-row {
-        flex-direction: column;
+        flex-wrap: wrap;
+    }
+
+    .stat-highlight {
+        min-width: 180px;
+        flex: 1 1 calc(50% - 0.75rem);
     }
 
     .se-form-grid {
         grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-dashboard {
+        padding: 1rem 0.75rem;
+    }
+
+    .admin-dashboard-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .header-actions {
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .header-actions .btn-add,
+    .header-actions .btn-export-excel,
+    .header-actions .btn-import-excel {
+        flex: 1 1 auto;
+        justify-content: center;
+        min-height: 44px;
+        font-size: 0.82rem;
+    }
+
+    .stats-row {
+        gap: 0.75rem;
+    }
+
+    .stat-highlight {
+        min-width: 0;
+        flex: 1 1 calc(50% - 0.5rem);
+        padding: 0.75rem 0.8rem 0.75rem 4.5rem;
+        min-height: 72px;
+    }
+
+    .stat-highlight::before {
+        width: 42px;
+        height: 42px;
+        left: 0.75rem;
+    }
+
+    .stat-highlight .stat-number {
+        font-size: 1.4rem;
+    }
+
+    .stat-highlight .stat-label {
+        font-size: 0.68rem;
+    }
+
+    .se-form-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .se-modal-content {
+        width: 95%;
+        max-width: none;
+        padding: 1.25rem;
+    }
+
+    .excel-table {
+        min-width: 900px;
+    }
+
+    /* Touch-friendly row actions */
+    .btn-row-action {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.82rem;
+        min-height: 36px;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-dashboard {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .admin-dashboard-header h1 {
+        font-size: 1.25rem;
+    }
+
+    .header-actions {
+        gap: 0.4rem;
+    }
+
+    .header-actions .btn-add,
+    .header-actions .btn-export-excel,
+    .header-actions .btn-import-excel {
+        padding: 0.5rem 0.6rem;
+        font-size: 0.75rem;
+    }
+
+    .stats-row {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .stat-highlight {
+        flex: 1 1 100%;
+    }
+
+    .se-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .se-modal-content {
+        padding: 1rem;
+        border-radius: 10px;
+    }
+
+    .se-modal-content h3 {
+        font-size: 1rem;
+    }
+
+    .vue-global-section h2,
+    .dossier-main-section h2 {
+        font-size: 0.9rem;
+    }
+
+    .btn-cancel,
+    .btn-save {
+        min-height: 44px;
+        padding: 0.6rem 1rem;
     }
 }

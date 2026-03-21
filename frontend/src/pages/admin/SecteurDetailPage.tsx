@@ -67,35 +67,77 @@ function getCellValue(data: Record<string, any>, col: ColumnConfig): string {
     return String(val);
 }
 
-// ETAT dropdown options — exact values from Excel conditional formatting
-const ETAT_OPTIONS = [
-    '01 VT A FAIRE',
-    '01 AT VT',
-    '01.2 A REMONTER',
-    '01.3 Etude CDC',
-    '02 RETOUR VT',
-    '03 DOSSIER A REPRENDRE',
-    '04 DOSSIER A MONTER',
-    '05 AT INFO CAF REF',
-    '05.1 ETU TRANSMISE',
-    '05 Dossier terminer',
-    '06 AT DEVIS CLIENT',
-    '07 AT TRVX CLIENT',
-    '08 AT COMAC/CAPFT',
-    '09 AT DEVIS ORANGE/RIP',
-    '10 AT PV',
-    '10.1 ATT DT',
-    '11 AT DTA',
-    '12 AT MAJ SI',
-    '13 ETAT 5',
-    '14 POI EN TRAVAUX',
-    '14.1 AT RETOUR DOE',
-    '15 POI FACTU',
+// ═══════════════════════════════════════════════════
+// PER-SECTOR ETAT MAPPING — each sector only sees its own états
+// ═══════════════════════════════════════════════════
+const SECTOR_ETAT_MAP: Record<string, string[]> = {
+    'MEN-ROD': [
+        '01 AT VT', '01.2 A REMONTER', '02 RETOUR VT',
+        '03 DOSSIER A REPRENDRE', '04 DOSSIER A MONTER',
+        '05 AT INFO CAF REF', '05.1 ETU TRANSMISE',
+        '06 AT DEVIS CLIENT', '07 AT TRVX CLIENT',
+        '09 AT DEVIS ORANGE/RIP', '10 AT PV', '10.1 ATT DT',
+        '11 AT DTA', '12 AT MAJ SI', '13 ETAT 5',
+        '14 POI EN TRAVAUX',
+    ],
+    'QPR-CRO': [
+        '01 AT VT', '01.2 A REMONTER', '02 RETOUR VT',
+        '04 DOSSIER A MONTER',
+        '05 AT INFO CAF REF', '05.1 ETU TRANSMISE',
+        '06 AT DEVIS CLIENT', '07 AT TRVX CLIENT',
+        '09 AT DEVIS ORANGE/RIP', '10 AT PV',
+        '12 AT MAJ SI', '13 ETAT 5',
+        '14 POI EN TRAVAUX', '14.1 AT RETOUR DOE', '15 POI FACTU',
+    ],
+    'GDP AQ': [
+        '01 AT VT', '01.2 A REMONTER', '02 RETOUR VT',
+        '03 DOSSIER A REPRENDRE', '04 DOSSIER A MONTER',
+        '05 AT INFO CAF REF', '05.1 ETU TRANSMISE',
+        '06 AT DEVIS CLIENT', '07 AT TRVX CLIENT',
+        '09 AT DEVIS ORANGE/RIP', '10 AT PV',
+        '11 AT DTA', '12 AT MAJ SI',
+        '14 POI EN TRAVAUX', '14.1 AT RETOUR DOE',
+    ],
+    'SPI AQ': [
+        '01 AT VT', '01.2 A REMONTER', '02 RETOUR VT',
+        '05 AT PV', '05.1 AT DTA', '06 AT MAJ SI',
+        '07 AT INFO CAF REF', '08 AT DEVIS ORANGE/RIP',
+        '09 POI EN TRAVAUX', '09.1 ATT DOE',
+    ],
+    'COMAC CAPFT': [
+        '01 Dossier à monter', '04 Dossier à reprendre',
+        '05 Dossier terminer',
+    ],
+    'SPI Bretagne': [
+        '01 Dossier Bloqué', '02 Dossier envoyé',
+        '03 Etude terminé',
+    ],
+};
+
+// Fallback: full list for sectors not yet mapped
+const ETAT_OPTIONS_FALLBACK = [
+    '01 VT A FAIRE', '01 AT VT', '01.2 A REMONTER', '01.3 Etude CDC',
+    '02 RETOUR VT', '03 DOSSIER A REPRENDRE', '04 DOSSIER A MONTER',
+    '05 AT INFO CAF REF', '05.1 ETU TRANSMISE', '05 Dossier terminer',
+    '06 AT DEVIS CLIENT', '07 AT TRVX CLIENT', '08 AT COMAC/CAPFT',
+    '09 AT DEVIS ORANGE/RIP', '10 AT PV', '10.1 ATT DT',
+    '11 AT DTA', '12 AT MAJ SI', '13 ETAT 5',
+    '14 POI EN TRAVAUX', '14.1 AT RETOUR DOE', '15 POI FACTU',
     '16 DOSSIER PAYE',
 ];
 
-function isSelectColumn(col: ColumnConfig): boolean {
-    return col.type === 'select' || col.key === 'etat' || col.label.toLowerCase() === 'etat';
+// Check if a column key/label refers to the COMAC/CAPFT column
+function isComacCapftColumn(col: ColumnConfig): boolean {
+    const lower = (col.key + ' ' + col.label).toLowerCase();
+    return lower.includes('comac') || lower.includes('capft');
+}
+
+function isSelectColumn(col: ColumnConfig, secteur?: string): boolean {
+    if (col.type === 'select') return true;
+    if (col.key === 'etat' || col.label.toLowerCase() === 'etat') return true;
+    // In COMAC CAPFT sector, the COMAC/CAPFT column becomes a dropdown
+    if (secteur === 'COMAC CAPFT' && isComacCapftColumn(col)) return true;
+    return false;
 }
 
 // Keep backward compatibility
@@ -103,10 +145,19 @@ function isEtatColumn(col: ColumnConfig): boolean {
     return col.key === 'etat' || col.label.toLowerCase() === 'etat';
 }
 
-// Get dropdown options for a column: use column's own options, or fall back to ETAT_OPTIONS for legacy etat columns
-function getColumnOptions(col: ColumnConfig): string[] {
+// Get dropdown options for a column, filtered by sector for ETAT columns
+function getColumnOptions(col: ColumnConfig, secteur?: string): string[] {
     if (col.options && col.options.length > 0) return col.options;
-    if (isEtatColumn(col)) return ETAT_OPTIONS;
+    if (isEtatColumn(col)) {
+        if (secteur && SECTOR_ETAT_MAP[secteur]) {
+            return SECTOR_ETAT_MAP[secteur];
+        }
+        return ETAT_OPTIONS_FALLBACK;
+    }
+    // COMAC/CAPFT column in the COMAC CAPFT sector → restricted dropdown
+    if (secteur === 'COMAC CAPFT' && isComacCapftColumn(col)) {
+        return ['COMAC', 'CAPFT'];
+    }
     return [];
 }
 
@@ -125,16 +176,28 @@ const ETAT_COLORS: Record<string, { bg: string; color: string }> = {
     '06 at devis client': { bg: '#00B0F0', color: '#000' },
     '07 at trvx client': { bg: '#D9E2F3', color: '#000' },
     '08 at comac/capft': { bg: '#E2EFDA', color: '#000' },
+    '08 at devis orange/rip': { bg: '#FFC000', color: '#000' },
     '09 at devis orange/rip': { bg: '#FFC000', color: '#000' },
+    '09 poi en travaux': { bg: '#FFFF00', color: '#000' },
+    '09.1 att doe': { bg: '#9DC3E6', color: '#0070C0' },
     '10 at pv': { bg: '#F4B084', color: '#000' },
     '10.1 att dt': { bg: '#E2EFDA', color: '#000' },
     '11 at dta': { bg: '#D6DCE4', color: '#000' },
+    '05.1 at dta': { bg: '#D6DCE4', color: '#000' },
+    '06 at maj si': { bg: '#B4C6E7', color: '#000' },
     '12 at maj si': { bg: '#B4C6E7', color: '#000' },
     '13 etat 5': { bg: '#00B050', color: '#fff' },
     '14 poi en travaux': { bg: '#FFFF00', color: '#000' },
     '14.1 at retour doe': { bg: '#9DC3E6', color: '#0070C0' },
     '15 poi factu': { bg: '#A9D18E', color: '#000' },
     '16 dossier paye': { bg: '#FCA7A7', color: '#000' },
+    // COMAC CAPFT
+    '01 dossier à monter': { bg: '#FF0000', color: '#fff' },
+    '04 dossier à reprendre': { bg: '#FF6600', color: '#fff' },
+    // SPI Bretagne
+    '01 dossier bloqué': { bg: '#FF0000', color: '#fff' },
+    '02 dossier envoyé': { bg: '#92D050', color: '#000' },
+    '03 etude terminé': { bg: '#00B050', color: '#fff' },
 };
 
 function findEtatColor(data: Record<string, any>, columns: ColumnConfig[]): { bg: string; color: string } | null {
@@ -761,7 +824,7 @@ const SecteurDetailPage: React.FC = () => {
                                                     return (
                                                         <td key={col.key} title={String(getDataValue(d.data, col) || '')}>
                                                             {isEditing && canEdit ? (
-                                                                isSelectColumn(col) ? (
+                                                                isSelectColumn(col, sectorName) ? (
                                                                     <select
                                                                         className="inline-etat-select"
                                                                         value={inlineEditValue}
@@ -771,7 +834,7 @@ const SecteurDetailPage: React.FC = () => {
                                                                         style={{ maxWidth: '180px', fontSize: '0.78rem', padding: '2px 4px', borderRadius: '4px', border: '1.5px solid #1976d2' }}
                                                                     >
                                                                         <option value="">— Sélectionner —</option>
-                                                                        {getColumnOptions(col).map((opt) => (
+                                                                        {getColumnOptions(col, sectorName).map((opt) => (
                                                                             <option key={opt} value={opt}>{opt}</option>
                                                                         ))}
                                                                     </select>
@@ -878,14 +941,14 @@ const SecteurDetailPage: React.FC = () => {
                                         <label htmlFor={col.key}>
                                             {col.label} {col.required && '*'}
                                         </label>
-                                        {isSelectColumn(col) ? (
+                                        {isSelectColumn(col, sectorName) ? (
                                             <select
                                                 id={col.key}
                                                 value={formData[col.key] || ''}
                                                 onChange={(e) => handleFormChange(col.key, e.target.value)}
                                             >
                                                 <option value="">{t('common.select')}</option>
-                                                {getColumnOptions(col).map((opt) => (
+                                                {getColumnOptions(col, sectorName).map((opt) => (
                                                     <option key={opt} value={opt}>{opt}</option>
                                                 ))}
                                             </select>
