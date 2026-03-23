@@ -2,20 +2,35 @@ import { Request, Response } from 'express';
 import prisma from '../config/database';
 import * as XLSX from 'xlsx';
 
-const DEFAULT_COLUMN_CONFIG = [
-    { key: 'Code OEIE', label: 'Code OEIE', type: 'text', required: true },
-    { key: 'DRE', label: 'DRE', type: 'date', required: false },
-    { key: 'ETAT', label: 'ETAT', type: 'text', required: false },
-    { key: 'POI', label: 'POI', type: 'text', required: false },
-    { key: 'SJ', label: 'SJ', type: 'text', required: false },
-    { key: 'CAFF', label: 'CAFF', type: 'text', required: false },
-    { key: 'Mémo Chaf', label: 'Mémo Chaf', type: 'text', required: false },
-    { key: 'VILLE', label: 'Ville', type: 'text', required: false },
-    { key: 'ADRESSE', label: 'Adresse', type: 'text', required: false },
-    { key: 'DATE VT', label: 'Date VT', type: 'date', required: false },
-    { key: 'COMMENTAIRES', label: 'Commentaires', type: 'textarea', required: false },
-    { key: 'CTC', label: 'CTC', type: 'text', required: false },
-];
+/**
+ * Derive column config dynamically from dossier data keys.
+ * Used as fallback when a sector has no stored columnConfig.
+ */
+async function deriveColumnConfig(secteur: string): Promise<any[]> {
+    const dossiers = await prisma.dossierEtude.findMany({
+        where: { secteur },
+        take: 5, // sample a few dossiers to get all keys
+    });
+    if (dossiers.length === 0) return [];
+    // Collect all unique keys from dossier data
+    const keySet = new Set<string>();
+    for (const d of dossiers) {
+        const data = d.data as Record<string, any>;
+        for (const key of Object.keys(data)) {
+            keySet.add(key);
+        }
+    }
+    // Build config from actual data keys
+    const keys = Array.from(keySet);
+    return keys.map((key, idx) => ({
+        key,
+        label: key,
+        type: key.toLowerCase().includes('date') || key === 'DRE'
+            || key.toLowerCase().includes('relance') || key.toLowerCase().includes('création')
+            ? 'date' : (key.toLowerCase().includes('comment') ? 'textarea' : 'text'),
+        required: idx === 0,
+    }));
+}
 
 // Mapping from lowercase ETAT values → SuiviEtude field names (same as dossier controller)
 const ETAT_TO_FIELD: Record<string, string> = {
@@ -73,7 +88,7 @@ async function recalcSectorCounts(secteur: string) {
         }
 
         const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-        const colConfig = (sector?.columnConfig as any[]) || DEFAULT_COLUMN_CONFIG;
+        const colConfig = (sector?.columnConfig as any[]) || [];
         const etatCol = colConfig.find(
             (c: any) => c.key?.toLowerCase() === 'etat' || c.label?.toLowerCase() === 'etat'
         );
@@ -138,7 +153,10 @@ export class ExcelController {
 
             // Get column config for this sector
             const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-            const columnConfig = (sector?.columnConfig as any[]) || DEFAULT_COLUMN_CONFIG;
+            let columnConfig = (sector?.columnConfig as any[]);
+            if (!columnConfig || columnConfig.length === 0) {
+                columnConfig = await deriveColumnConfig(secteur);
+            }
 
             // Get all dossiers (no pagination — export everything)
             const dossiers = await prisma.dossierEtude.findMany({
@@ -216,7 +234,7 @@ export class ExcelController {
 
             // Get column config for this sector
             const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-            const columnConfig = (sector?.columnConfig as any[]) || DEFAULT_COLUMN_CONFIG;
+            const columnConfig = (sector?.columnConfig as any[]) || [];
 
             // Parse the uploaded Excel file from memory buffer
             const wb = XLSX.read(file.buffer, { type: 'buffer' });
@@ -253,6 +271,31 @@ export class ExcelController {
                 return fh || null;
             });
 
+            // Build column config from Excel headers and update the sector
+            const newColumnConfig = fileHeaders
+                .filter(h => h) // skip empty headers
+                .map((header, idx) => {
+                    // Try to find existing config to preserve type/required settings
+                    const existing = columnConfig.find((c: any) =>
+                        c.label === header || c.key === header ||
+                        (c.label || '').toLowerCase() === header.toLowerCase() ||
+                        (c.key || '').toLowerCase() === header.toLowerCase()
+                    );
+                    return {
+                        key: existing?.key || header,
+                        label: header,
+                        type: existing?.type || (header.toLowerCase().includes('date') || header === 'DRE' ? 'date' : 'text'),
+                        required: existing?.required || idx === 0,
+                    };
+                });
+
+            if (sector) {
+                await prisma.suiviEtude.update({
+                    where: { secteur },
+                    data: { columnConfig: newColumnConfig },
+                });
+            }
+
             let imported = 0;
             for (let i = 1; i < allRows.length; i++) {
                 const row = allRows[i] as any[];
@@ -263,9 +306,25 @@ export class ExcelController {
                     const key = headerToKey[j];
                     if (!key) continue;
                     const value = row[j];
-                    // Fill empty cells with "N/A"
+                    // Convert Excel date serial numbers to DD/MM/YYYY
+                    const lowerKey = key.toLowerCase();
+                    if (lowerKey.includes('date') || key === 'DRE' ||
+                        lowerKey.includes('relance') || lowerKey.includes('création')) {
+                        if (typeof value === 'number') {
+                            try {
+                                const d = XLSX.SSF.parse_date_code(value);
+                                if (d) {
+                                    const dd = String(d.d).padStart(2, '0');
+                                    const mm = String(d.m).padStart(2, '0');
+                                    dossierData[key] = `${dd}/${mm}/${d.y}`;
+                                    continue;
+                                }
+                            } catch { /* not a date */ }
+                        }
+                    }
+                    // If cell exists in Excel but is empty, keep it as empty string
                     dossierData[key] = (value === undefined || value === null || String(value).trim() === '')
-                        ? 'N/A'
+                        ? ''
                         : String(value);
                 }
 
@@ -346,7 +405,10 @@ export class ExcelController {
 
             // ── 2. Per-sector dossier sheets ──
             for (const sector of sectors) {
-                const columnConfig = (sector.columnConfig as any[]) || DEFAULT_COLUMN_CONFIG;
+                let columnConfig = (sector.columnConfig as any[]);
+                if (!columnConfig || columnConfig.length === 0) {
+                    columnConfig = await deriveColumnConfig(sector.secteur);
+                }
                 const dossiers = await prisma.dossierEtude.findMany({
                     where: { secteur: sector.secteur },
                     orderBy: { createdAt: 'asc' },
@@ -465,7 +527,7 @@ export class ExcelController {
                         poiEnTravaux: parseInt(row[16]) || 0,
                         atRetourDoe: parseInt(row[17]) || 0,
                         etat5: parseInt(row[19]) || 0,
-                        columnConfig: DEFAULT_COLUMN_CONFIG,
+                        columnConfig: [],
                     };
 
                     if (mode === 'add') {
@@ -535,28 +597,26 @@ export class ExcelController {
                 // Ensure secteur exists in suivi_etudes
                 const secteur = sheetName;
                 const existing = await prisma.suiviEtude.findUnique({ where: { secteur } });
+                // Always build columnConfig from actual Excel headers
+                const excelColumnConfig = nonEmptyHeaders.map((h, idx) => ({
+                    key: h,
+                    label: h,
+                    type: h.toLowerCase().includes('date') ? 'date' : 'text',
+                    required: idx === 0,
+                }));
                 if (!existing) {
                     await prisma.suiviEtude.create({
                         data: {
                             secteur,
-                            columnConfig: nonEmptyHeaders.map((h, idx) => ({
-                                key: h,
-                                label: h,
-                                type: h.toLowerCase().includes('date') ? 'date' : 'text',
-                                required: idx === 0,
-                            })),
+                            columnConfig: excelColumnConfig,
                         },
                     });
-                } else if (!existing.columnConfig || (existing.columnConfig as any[]).length === 0) {
+                } else {
+                    // Always update columnConfig from Excel headers to match the actual sheet
                     await prisma.suiviEtude.update({
                         where: { secteur },
                         data: {
-                            columnConfig: nonEmptyHeaders.map((h, idx) => ({
-                                key: h,
-                                label: h,
-                                type: h.toLowerCase().includes('date') ? 'date' : 'text',
-                                required: idx === 0,
-                            })),
+                            columnConfig: excelColumnConfig,
                         },
                     });
                 }
@@ -572,13 +632,7 @@ export class ExcelController {
                         if (!header) continue;
                         let value = row[j];
 
-                        // Fill empty cells with "N/A"
-                        if (value === undefined || value === null || String(value).trim() === '') {
-                            dossierData[header] = 'N/A';
-                            continue;
-                        }
-
-                        // Convert Excel date numbers
+                        // Convert Excel date numbers first
                         const lowerHeader = header.toLowerCase();
                         if (lowerHeader.includes('date') || header === 'DRE' ||
                             lowerHeader.includes('relance') || lowerHeader.includes('création')) {
@@ -594,7 +648,12 @@ export class ExcelController {
                             }
                         }
 
-                        dossierData[header] = String(value);
+                        // If cell exists in Excel but is empty, keep as empty string
+                        if (value === undefined || value === null || String(value).trim() === '') {
+                            dossierData[header] = '';
+                        } else {
+                            dossierData[header] = String(value);
+                        }
                     }
 
                     if (Object.keys(dossierData).length > 0) {

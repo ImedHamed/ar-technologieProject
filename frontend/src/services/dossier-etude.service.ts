@@ -76,10 +76,11 @@ class DossierEtudeService {
         document.body.removeChild(a);
     }
 
-    async importExcel(secteur: string, file: File): Promise<{ imported: number }> {
+    async importExcel(secteur: string, file: File, mode: 'add' | 'replace' = 'replace'): Promise<{ imported: number }> {
         const formData = new FormData();
         formData.append('secteur', secteur);
         formData.append('file', file);
+        formData.append('mode', mode);
         const response = await apiClient.post('/excel/import', formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
         });

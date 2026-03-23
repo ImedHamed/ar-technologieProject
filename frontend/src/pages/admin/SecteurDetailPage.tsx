@@ -5,6 +5,8 @@ import { useLanguage } from '../../i18n/i18n';
 import dossierEtudeService from '../../services/dossier-etude.service';
 import suiviEtudeService from '../../services/suivi-etude.service';
 import type { DossierEtude, ColumnConfig } from '../../services/dossier-etude.service';
+import ImportModeDialog from '../../components/ImportModeDialog';
+import type { ImportMode } from '../../components/ImportModeDialog';
 import './SecteurDetailPage.css';
 
 // 🔗 POI SharePoint link — Replace with your SharePoint base URL
@@ -60,7 +62,7 @@ function getDataValue(data: Record<string, any>, col: ColumnConfig): any {
 
 function getCellValue(data: Record<string, any>, col: ColumnConfig): string {
     const val = getDataValue(data, col);
-    if (val === null || val === undefined || val === '') return '-';
+    if (val === null || val === undefined || val === '' || val === 'N/A' || val === 'n/a') return '-';
     if (col.type === 'date') return formatDate(val);
     const maxLen = col.type === 'textarea' ? 120 : 35;
     if (typeof val === 'string' && val.length > maxLen) return val.substring(0, maxLen) + '...';
@@ -621,6 +623,8 @@ const SecteurDetailPage: React.FC = () => {
     const [exporting, setExporting] = useState(false);
     const [importing, setImporting] = useState(false);
     const importFileRef = useRef<HTMLInputElement>(null);
+    const [showImportDialog, setShowImportDialog] = useState(false);
+    const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
     const handleExportExcel = async () => {
         setExporting(true);
@@ -633,20 +637,36 @@ const SecteurDetailPage: React.FC = () => {
         }
     };
 
-    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Step 1: User picks a file → show the import mode dialog
+    const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+        setPendingImportFile(file);
+        setShowImportDialog(true);
+    };
+
+    // Step 2: User confirms mode → run the import
+    const handleImportConfirm = async (mode: ImportMode) => {
+        setShowImportDialog(false);
+        if (!pendingImportFile) return;
         setImporting(true);
         try {
-            const result = await dossierEtudeService.importExcel(sectorName, file);
-            alert(`✅ ${result.imported} dossiers importés avec succès`);
+            const result = await dossierEtudeService.importExcel(sectorName, pendingImportFile, mode);
+            alert(`✅ ${result.imported} dossiers importés (${mode === 'add' ? 'ajout' : 'remplacement'})`);
             fetchData(1);
         } catch {
             alert('Échec de l\'import Excel');
         } finally {
             setImporting(false);
+            setPendingImportFile(null);
             if (importFileRef.current) importFileRef.current.value = '';
         }
+    };
+
+    const handleImportCancel = () => {
+        setShowImportDialog(false);
+        setPendingImportFile(null);
+        if (importFileRef.current) importFileRef.current.value = '';
     };
 
     const pageButtons = () => {
@@ -658,14 +678,17 @@ const SecteurDetailPage: React.FC = () => {
     };
 
     // ─── Computed stats ───────────────────────────────────────
-    const vtAFaireCount = React.useMemo(() => {
+    const isComacCapft = sectorName === 'COMAC CAPFT';
+    const primaryStatLabel = isComacCapft ? 'Dossier à monter' : t('sector.vt_a_faire');
+    const primaryStatCount = React.useMemo(() => {
         const etatCol = columns.find(c => isEtatColumn(c));
         if (!etatCol) return 0;
+        const targetEtat = isComacCapft ? '01 dossier à monter' : '01 vt a faire';
         return dossiers.filter(d => {
             const val = getDataValue(d.data, etatCol);
-            return val && String(val).toLowerCase().trim() === '01 vt a faire';
+            return val && String(val).toLowerCase().trim() === targetEtat;
         }).length;
-    }, [dossiers, columns]);
+    }, [dossiers, columns, isComacCapft]);
 
     // ─── Render ───────────────────────────────────────────────
 
@@ -698,7 +721,7 @@ const SecteurDetailPage: React.FC = () => {
                                 ref={importFileRef}
                                 accept=".xlsx,.xls"
                                 style={{ display: 'none' }}
-                                onChange={handleImportExcel}
+                                onChange={handleFileSelected}
                             />
                             <button className="btn-manage-cols" onClick={openColumnManager}>
                                 {t('sector.manage_cols')}
@@ -714,8 +737,8 @@ const SecteurDetailPage: React.FC = () => {
             {/* Stats bar */}
             <div className="secteur-stats-bar">
                 <div className="secteur-stat-card primary">
-                    <span className="stat-card-label">{t('sector.vt_a_faire')}</span>
-                    <span className="stat-card-value">{vtAFaireCount}</span>
+                    <span className="stat-card-label">{primaryStatLabel}</span>
+                    <span className="stat-card-value">{primaryStatCount}</span>
                 </div>
                 <div className="secteur-stat-card info">
                     <span className="stat-card-label">{t('sector.nb_dossiers')}</span>
@@ -1073,6 +1096,14 @@ const SecteurDetailPage: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Import Mode Dialog */}
+            <ImportModeDialog
+                open={showImportDialog}
+                scope={sectorName}
+                onConfirm={handleImportConfirm}
+                onCancel={handleImportCancel}
+            />
         </div>
     );
 };

@@ -1,20 +1,33 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 
-const DEFAULT_COLUMN_CONFIG = [
-    { key: 'Code OEIE', label: 'Code OEIE', type: 'text', required: true },
-    { key: 'DRE', label: 'DRE', type: 'date', required: false },
-    { key: 'ETAT', label: 'ETAT', type: 'text', required: false },
-    { key: 'POI', label: 'POI', type: 'text', required: false },
-    { key: 'SJ', label: 'SJ', type: 'text', required: false },
-    { key: 'CAFF', label: 'CAFF', type: 'text', required: false },
-    { key: 'Mémo Chaf', label: 'Mémo Chaf', type: 'text', required: false },
-    { key: 'VILLE', label: 'Ville', type: 'text', required: false },
-    { key: 'ADRESSE', label: 'Adresse', type: 'text', required: false },
-    { key: 'DATE VT', label: 'Date VT', type: 'date', required: false },
-    { key: 'COMMENTAIRES', label: 'Commentaires', type: 'textarea', required: false },
-    { key: 'CTC', label: 'CTC', type: 'text', required: false },
-];
+/**
+ * Derive column config dynamically from dossier data keys.
+ * Used as fallback when a sector has no stored columnConfig.
+ */
+async function deriveColumnConfigFromData(secteur: string): Promise<any[]> {
+    const dossiers = await prisma.dossierEtude.findMany({
+        where: { secteur },
+        take: 5,
+    });
+    if (dossiers.length === 0) return [];
+    const keySet = new Set<string>();
+    for (const d of dossiers) {
+        const data = d.data as Record<string, any>;
+        for (const key of Object.keys(data)) {
+            keySet.add(key);
+        }
+    }
+    const keys = Array.from(keySet);
+    return keys.map((key, idx) => ({
+        key,
+        label: key,
+        type: key.toLowerCase().includes('date') || key === 'DRE'
+            || key.toLowerCase().includes('relance') || key.toLowerCase().includes('création')
+            ? 'date' : (key.toLowerCase().includes('comment') ? 'textarea' : 'text'),
+        required: idx === 0,
+    }));
+}
 
 // Mapping from lowercase ETAT values → SuiviEtude field names
 const ETAT_TO_FIELD: Record<string, string> = {
@@ -56,7 +69,7 @@ async function recalcSectorCounts(secteur: string) {
 
         // Find the etat column key from the sector's column config
         const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-        const colConfig = (sector?.columnConfig as any[]) || DEFAULT_COLUMN_CONFIG;
+        const colConfig = (sector?.columnConfig as any[]) || [];
         const etatCol = colConfig.find(
             (c: any) => c.key?.toLowerCase() === 'etat' || c.label?.toLowerCase() === 'etat'
         );
@@ -135,11 +148,13 @@ export class DossierEtudeController {
             ]);
 
             // Get column config for the sector
-            let columnConfig = DEFAULT_COLUMN_CONFIG;
+            let columnConfig: any[] = [];
             if (secteur) {
                 const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-                if (sector?.columnConfig) {
+                if (sector?.columnConfig && (sector.columnConfig as any[]).length > 0) {
                     columnConfig = sector.columnConfig as any;
+                } else {
+                    columnConfig = await deriveColumnConfigFromData(secteur);
                 }
             }
 

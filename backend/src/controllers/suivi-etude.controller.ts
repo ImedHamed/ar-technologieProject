@@ -1,20 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 
-const DEFAULT_COLUMN_CONFIG = [
-    { key: 'Code OEIE', label: 'Code OEIE', type: 'text', required: true },
-    { key: 'DRE', label: 'DRE', type: 'date', required: false },
-    { key: 'ETAT', label: 'ETAT', type: 'text', required: false },
-    { key: 'POI', label: 'POI', type: 'text', required: false },
-    { key: 'SJ', label: 'SJ', type: 'text', required: false },
-    { key: 'CAFF', label: 'CAFF', type: 'text', required: false },
-    { key: 'Mémo Chaf', label: 'Mémo Chaf', type: 'text', required: false },
-    { key: 'VILLE', label: 'Ville', type: 'text', required: false },
-    { key: 'ADRESSE', label: 'Adresse', type: 'text', required: false },
-    { key: 'DATE VT', label: 'Date VT', type: 'date', required: false },
-    { key: 'COMMENTAIRES', label: 'Commentaires', type: 'textarea', required: false },
-    { key: 'CTC', label: 'CTC', type: 'text', required: false },
-];
+
 
 export class SuiviEtudeController {
     /**
@@ -139,7 +126,7 @@ export class SuiviEtudeController {
                     etat5: data.etat5 || 0,
                     dossierMainBe: data.dossierMainBe || 0,
                     dossierMainChaff: data.dossierMainChaff || 0,
-                    columnConfig: DEFAULT_COLUMN_CONFIG,
+                    columnConfig: [],
                 },
             });
 
