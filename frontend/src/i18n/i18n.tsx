@@ -76,6 +76,15 @@ const translations: Record<Lang, Record<string, string>> = {
         'dashboard.update': 'Mettre à jour',
         'dashboard.delete_confirm': 'Supprimer le secteur',
         'dashboard.global': 'GLOBAL',
+        'dashboard.search_all_dossiers': 'Rechercher un dossier dans tous les secteurs…',
+        'dashboard.search_results_title': 'Dossiers trouvés (tous secteurs)',
+        'dashboard.search_no_hits': 'Aucun dossier ne correspond à cette recherche.',
+        'dashboard.search_col_sector': 'Secteur',
+        'dashboard.search_col_preview': 'Aperçu',
+        'dashboard.search_col_open': 'Action',
+        'dashboard.search_open_sector': 'Ouvrir le secteur',
+        'dashboard.search_cap_hint': `Affichage limité aux ${500} premiers résultats. Affinez la recherche si besoin.`,
+        'dashboard.dre_ko_nav_hint': 'Voir uniquement les dossiers DRE KO dans ce secteur',
 
         // ── Sector Detail ──
         'sector.dossiers_title': 'Dossiers',
@@ -105,6 +114,12 @@ const translations: Record<Lang, Record<string, string>> = {
         'sector.col_save': 'Enregistrer les colonnes',
         'sector.col_saving': 'Sauvegarde...',
         'sector.delete_confirm': 'Supprimer ce dossier ?',
+        'sector.metric_banner_dre_ko': 'Filtre DRE KO (vue globale)',
+        'sector.clear_metric_filter': 'Afficher tous les dossiers',
+        'sector.metric_filter_empty':
+            'Aucun dossier : aucune colonne liée au DRE (DRE, Date DRE, DRE KO, etc.) ne contient KO, NC ou NON. Vérifiez les noms de colonnes dans les données ou lancez un recalcul.',
+        'sector.metric_dre_ko_vue_hint':
+            'Écart : la vue globale affichait {{V}} DRE KO (import ou dernier enregistrement). Ici {{F}} dossier(s) avec uniquement KO, NC ou NON dans la colonne DRE (N/C = NC). Après recalcul depuis les dossiers, le total peut se mettre à jour.',
 
         // ── User Management ──
         'users.title': '👥 Gestion des Utilisateurs',
@@ -209,6 +224,15 @@ const translations: Record<Lang, Record<string, string>> = {
         'dashboard.update': 'Update',
         'dashboard.delete_confirm': 'Delete sector',
         'dashboard.global': 'GLOBAL',
+        'dashboard.search_all_dossiers': 'Search a dossier across all sectors…',
+        'dashboard.search_results_title': 'Matching dossiers (all sectors)',
+        'dashboard.search_no_hits': 'No dossier matches this search.',
+        'dashboard.search_col_sector': 'Sector',
+        'dashboard.search_col_preview': 'Preview',
+        'dashboard.search_col_open': 'Action',
+        'dashboard.search_open_sector': 'Open sector',
+        'dashboard.search_cap_hint': `Showing up to ${500} results. Refine your search if needed.`,
+        'dashboard.dre_ko_nav_hint': 'Show only DRE KO dossiers in this sector',
 
         // ── Sector Detail ──
         'sector.dossiers_title': 'Files',
@@ -238,6 +262,12 @@ const translations: Record<Lang, Record<string, string>> = {
         'sector.col_save': 'Save columns',
         'sector.col_saving': 'Saving...',
         'sector.delete_confirm': 'Delete this file?',
+        'sector.metric_banner_dre_ko': 'DRE KO filter (global view)',
+        'sector.clear_metric_filter': 'Show all dossiers',
+        'sector.metric_filter_empty':
+            'No dossier: no DRE-related column (DRE, Date DRE, DRE KO, etc.) contains KO, NC or NON. Check column names in the data or run a recalc.',
+        'sector.metric_dre_ko_vue_hint':
+            'Difference: the global view showed {{V}} DRE KO (import or last saved total). Here {{F}} dossier(s) with only KO, NC or NON in the DRE column (N/C counts as NC). After a recalc from dossiers, the total may update.',
 
         // ── User Management ──
         'users.title': '👥 User Management',

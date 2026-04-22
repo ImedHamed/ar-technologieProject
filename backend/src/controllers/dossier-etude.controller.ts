@@ -1,5 +1,20 @@
 import { Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
 import prisma from '../config/database';
+import type { AuthRequest } from '../middleware/auth.middleware';
+import { countDreKoInDossiers } from '../utils/dre-ko-filter';
+
+type SecteurScope = { mode: 'all' } | { mode: 'restrict'; secteurs: string[] };
+
+async function getUserSecteurScope(userId: string): Promise<SecteurScope> {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { allowedSecteurs: true },
+    });
+    const allowed = user?.allowedSecteurs ?? [];
+    if (allowed.length === 0) return { mode: 'all' };
+    return { mode: 'restrict', secteurs: allowed };
+}
 
 /**
  * Derive column config dynamically from dossier data keys.
@@ -69,7 +84,10 @@ async function recalcSectorCounts(secteur: string) {
 
         // Find the etat column key from the sector's column config
         const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-        const colConfig = (sector?.columnConfig as any[]) || [];
+        let colConfig = (sector?.columnConfig as any[]) || [];
+        if (colConfig.length === 0) {
+            colConfig = await deriveColumnConfigFromData(secteur);
+        }
         const etatCol = colConfig.find(
             (c: any) => c.key?.toLowerCase() === 'etat' || c.label?.toLowerCase() === 'etat'
         );
@@ -91,12 +109,15 @@ async function recalcSectorCounts(secteur: string) {
             if (field) counts[field] = (counts[field] || 0) + 1;
         }
 
+        const dreKo = countDreKoInDossiers(dossiers, colConfig);
+
         // Update the SuiviEtude row
         if (sector) {
             await prisma.suiviEtude.update({
                 where: { secteur },
                 data: {
                     nbDossiers: total,
+                    dreKo,
                     vtAFaire: counts.vtAFaire || 0,
                     aRemonter: counts.aRemonter || 0,
                     retourVt: counts.retourVt || 0,
@@ -124,18 +145,88 @@ async function recalcSectorCounts(secteur: string) {
 
 export class DossierEtudeController {
     /**
-     * GET /api/v1/dossier-etudes?secteur=MEN-ROD
+     * GET /api/v1/dossier-etudes?secteur=MEN-ROD&search=...
+     * Without secteur: rows are limited to the user's allowed secteurs (empty allowed = all).
+     * With search: scans dossier JSON across the applicable secteur scope (DB ILIKE, not paginated-before-filter).
      */
-    async list(req: Request, res: Response): Promise<void> {
+    async list(req: AuthRequest, res: Response): Promise<void> {
         try {
-            const page = parseInt(req.query.page as string) || 1;
-            const limit = parseInt(req.query.limit as string) || 50;
+            if (!req.user) {
+                res.status(401).json({ error: 'Not authenticated' });
+                return;
+            }
+
+            const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+            const limitRaw = parseInt(req.query.limit as string, 10) || 50;
+            const limit = Math.min(100_000, Math.max(1, limitRaw));
             const secteur = req.query.secteur as string | undefined;
-            const search = req.query.search as string | undefined;
+            const search = (req.query.search as string | undefined)?.trim();
             const skip = (page - 1) * limit;
 
-            const where: any = {};
-            if (secteur) where.secteur = secteur;
+            const scope = await getUserSecteurScope(req.user.userId);
+            if (secteur && scope.mode === 'restrict' && !scope.secteurs.includes(secteur)) {
+                res.status(403).json({ error: 'Access denied to this sector' });
+                return;
+            }
+
+            const where: Prisma.DossierEtudeWhereInput = {};
+            if (secteur) {
+                where.secteur = secteur;
+            } else if (scope.mode === 'restrict') {
+                where.secteur = { in: scope.secteurs };
+            }
+
+            let columnConfig: any[] = [];
+            if (secteur) {
+                const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
+                if (sector?.columnConfig && (sector.columnConfig as any[]).length > 0) {
+                    columnConfig = sector.columnConfig as any[];
+                } else {
+                    columnConfig = await deriveColumnConfigFromData(secteur);
+                }
+            }
+
+            if (search) {
+                const likePattern = `%${search}%`;
+                let sectorSql: Prisma.Sql;
+                if (secteur) {
+                    sectorSql = Prisma.sql`secteur = ${secteur}`;
+                } else if (scope.mode === 'restrict') {
+                    sectorSql = Prisma.sql`secteur IN (${Prisma.join(scope.secteurs)})`;
+                } else {
+                    sectorSql = Prisma.sql`TRUE`;
+                }
+
+                const dossiers = await prisma.$queryRaw<
+                    { id: string; secteur: string; data: unknown; createdAt: Date; updatedAt: Date }[]
+                >`
+                    SELECT id, secteur, data, created_at AS "createdAt", updated_at AS "updatedAt"
+                    FROM dossier_etudes
+                    WHERE ${sectorSql}
+                    AND data::text ILIKE ${likePattern}
+                    ORDER BY secteur ASC, created_at ASC
+                    LIMIT ${limit} OFFSET ${skip}
+                `;
+
+                const countRows = await prisma.$queryRaw<[{ c: bigint }]>`
+                    SELECT COUNT(*)::bigint AS c FROM dossier_etudes
+                    WHERE ${sectorSql}
+                    AND data::text ILIKE ${likePattern}
+                `;
+                const total = Number(countRows[0]?.c ?? 0);
+
+                res.json({
+                    dossiers,
+                    columnConfig,
+                    pagination: {
+                        page,
+                        limit,
+                        total,
+                        totalPages: Math.max(1, Math.ceil(total / limit)),
+                    },
+                });
+                return;
+            }
 
             const [dossiers, total] = await Promise.all([
                 prisma.dossierEtude.findMany({
@@ -147,37 +238,14 @@ export class DossierEtudeController {
                 prisma.dossierEtude.count({ where }),
             ]);
 
-            // Get column config for the sector
-            let columnConfig: any[] = [];
-            if (secteur) {
-                const sector = await prisma.suiviEtude.findUnique({ where: { secteur } });
-                if (sector?.columnConfig && (sector.columnConfig as any[]).length > 0) {
-                    columnConfig = sector.columnConfig as any;
-                } else {
-                    columnConfig = await deriveColumnConfigFromData(secteur);
-                }
-            }
-
-            // Filter by search across data JSON values
-            let filteredDossiers = dossiers;
-            if (search) {
-                const searchLower = search.toLowerCase();
-                filteredDossiers = dossiers.filter((d: any) => {
-                    const data = d.data as Record<string, any>;
-                    return Object.values(data).some(
-                        (v) => v && String(v).toLowerCase().includes(searchLower)
-                    );
-                });
-            }
-
             res.json({
-                dossiers: filteredDossiers,
+                dossiers,
                 columnConfig,
                 pagination: {
                     page,
                     limit,
-                    total: search ? filteredDossiers.length : total,
-                    totalPages: Math.ceil((search ? filteredDossiers.length : total) / limit),
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / limit)),
                 },
             });
         } catch (error: any) {

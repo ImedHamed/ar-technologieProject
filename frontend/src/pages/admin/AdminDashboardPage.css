@@ -200,6 +200,122 @@
     margin-bottom: 0.6rem;
 }
 
+.vue-global-search-row {
+    margin-bottom: 0.85rem;
+}
+
+.dashboard-global-search-input {
+    width: 100%;
+    max-width: 28rem;
+    padding: 0.55rem 0.9rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: #fff;
+    color: #2c2c2c;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-global-search-input:focus {
+    outline: none;
+    border-color: #fb8c00;
+    box-shadow: 0 0 0 2px rgba(251, 140, 0, 0.2);
+}
+
+.global-dossier-search-panel {
+    margin-bottom: 1.1rem;
+}
+
+.global-dossier-search-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #374151;
+    margin: 0 0 0.5rem;
+}
+
+.global-dossier-search-empty {
+    margin: 0;
+    padding: 0.75rem 0;
+    color: #6b7280;
+    font-size: 0.85rem;
+}
+
+.global-dossier-search-cap {
+    margin: 0.5rem 0 0;
+    font-size: 0.78rem;
+    color: #92400e;
+}
+
+.global-dossier-search-wrapper {
+    margin-bottom: 0;
+}
+
+.global-dossier-search-table {
+    min-width: 520px !important;
+    white-space: normal;
+}
+
+.global-dossier-search-table thead th {
+    white-space: nowrap;
+}
+
+.global-dossier-search-table tbody td {
+    white-space: normal;
+    vertical-align: top;
+}
+
+.global-search-sector {
+    font-weight: 800;
+    color: #1b5e20;
+    white-space: nowrap;
+}
+
+.global-search-preview {
+    text-align: left !important;
+    font-weight: 500 !important;
+    font-size: 0.78rem !important;
+    color: #444 !important;
+    max-width: 36rem;
+    line-height: 1.35;
+}
+
+.btn-open-sector {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: none;
+    border-radius: 6px;
+    background: #2e7d32;
+    color: #fff;
+    cursor: pointer;
+}
+
+.btn-open-sector:hover {
+    background: #1b5e20;
+}
+
+button.dre-ko-cell-btn {
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-weight: inherit;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+button.dre-ko-cell-btn:hover {
+    filter: brightness(0.92);
+}
+
+button.dre-ko-cell-btn:focus-visible {
+    outline: 2px solid #fb8c00;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .excel-table-wrapper {
     overflow-x: auto;
     border-radius: 10px;

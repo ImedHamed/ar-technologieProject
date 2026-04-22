@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../i18n/i18n';
 import dossierEtudeService from '../../services/dossier-etude.service';
@@ -7,7 +7,11 @@ import suiviEtudeService from '../../services/suivi-etude.service';
 import type { DossierEtude, ColumnConfig } from '../../services/dossier-etude.service';
 import ImportModeDialog from '../../components/ImportModeDialog';
 import type { ImportMode } from '../../components/ImportModeDialog';
+import { isDreKoDossierRow } from '../../utils/dre-ko-filter';
 import './SecteurDetailPage.css';
+
+/** Load all dossiers for a secteur in one request (no page 1 / page 2 UI). */
+const SECTEUR_DOSSIER_FETCH_LIMIT = 100_000;
 
 // 🔗 POI SharePoint link — Replace with your SharePoint base URL
 // The POI value will be appended to this URL
@@ -246,9 +250,13 @@ function getCellStyle(col: ColumnConfig, _val: any, data: Record<string, any>, c
 const SecteurDetailPage: React.FC = () => {
     const { secteur } = useParams<{ secteur: string }>();
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { canEdit, allowedSecteurs } = useAuth();
     const { t } = useLanguage();
     const sectorName = secteur ? decodeURIComponent(secteur) : '';
+    const vueMetric = searchParams.get('metric');
+    const vueDreKoParam = searchParams.get('vueDreKo');
+    const vueDreKoFromDashboard = vueDreKoParam !== null && vueDreKoParam !== '' ? Number.parseInt(vueDreKoParam, 10) : NaN;
 
     // Block access if secteur is not in allowedSecteurs
     if (allowedSecteurs.length > 0 && !allowedSecteurs.includes(sectorName)) {
@@ -268,7 +276,7 @@ const SecteurDetailPage: React.FC = () => {
     const [dossiers, setDossiers] = useState<DossierEtude[]>([]);
     const [columns, setColumns] = useState<ColumnConfig[]>([]);
     const [sectorId, setSectorId] = useState<string | null>(null);
-    const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0, totalPages: 0 });
+    const [pagination, setPagination] = useState({ page: 1, limit: SECTEUR_DOSSIER_FETCH_LIMIT, total: 0, totalPages: 1 });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
@@ -395,11 +403,16 @@ const SecteurDetailPage: React.FC = () => {
         return isNaN(d.getTime()) ? 0 : d.getTime();
     };
 
+    const dossiersAfterMetric = React.useMemo(() => {
+        if (vueMetric !== 'dreKo' || !columns.length) return dossiers;
+        return dossiers.filter((d) => isDreKoDossierRow(d.data as Record<string, unknown>, columns));
+    }, [dossiers, columns, vueMetric]);
+
     const sortedDossiers = React.useMemo(() => {
-        if (!sortKey) return dossiers;
+        if (!sortKey) return dossiersAfterMetric;
         const col = columns.find(c => c.key === sortKey);
-        if (!col) return dossiers;
-        return [...dossiers].sort((a, b) => {
+        if (!col) return dossiersAfterMetric;
+        return [...dossiersAfterMetric].sort((a, b) => {
             const valA = getDataValue(a.data, col);
             const valB = getDataValue(b.data, col);
             let cmp = 0;
@@ -412,7 +425,19 @@ const SecteurDetailPage: React.FC = () => {
             }
             return sortDir === 'asc' ? cmp : -cmp;
         });
-    }, [dossiers, sortKey, sortDir, columns]);
+    }, [dossiersAfterMetric, sortKey, sortDir, columns]);
+
+    const clearVueMetric = useCallback(() => {
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete('metric');
+                next.delete('vueDreKo');
+                return next;
+            },
+            { replace: true },
+        );
+    }, [setSearchParams]);
 
     // Group sorted dossiers by selected column
     const groupedDossiers = React.useMemo(() => {
@@ -448,13 +473,13 @@ const SecteurDetailPage: React.FC = () => {
         }
     }, [sectorName]);
 
-    const fetchData = useCallback(async (page = 1) => {
+    const fetchData = useCallback(async () => {
         try {
             setLoading(true);
             const data = await dossierEtudeService.getAll({
                 secteur: sectorName,
-                page,
-                limit: 50,
+                page: 1,
+                limit: SECTEUR_DOSSIER_FETCH_LIMIT,
                 search: search || undefined,
             });
             setDossiers(data.dossiers);
@@ -502,7 +527,7 @@ const SecteurDetailPage: React.FC = () => {
         if (!window.confirm(`Supprimer le dossier "${codeLabel}" ?`)) return;
         try {
             await dossierEtudeService.delete(dossier.id);
-            fetchData(pagination.page);
+            fetchData();
         } catch {
             alert('Échec de la suppression');
         }
@@ -528,7 +553,7 @@ const SecteurDetailPage: React.FC = () => {
                 await dossierEtudeService.create(sectorName, formData);
             }
             setShowDossierModal(false);
-            fetchData(pagination.page);
+            fetchData();
         } catch (error: any) {
             alert(error.response?.data?.error || 'Échec de la sauvegarde');
         } finally {
@@ -607,17 +632,13 @@ const SecteurDetailPage: React.FC = () => {
         try {
             await suiviEtudeService.updateColumns(sectorId, editColumns);
             setShowColumnModal(false);
-            fetchData(pagination.page);
+            fetchData();
         } catch (error: any) {
             alert(error.response?.data?.error || 'Échec de la sauvegarde des colonnes');
         } finally {
             setSavingColumns(false);
         }
     };
-
-    // ─── Pagination ───────────────────────────────────────────
-
-    const handlePageChange = (page: number) => fetchData(page);
 
     // ─── Excel Import / Export ────────────────────────────────
     const [exporting, setExporting] = useState(false);
@@ -653,7 +674,7 @@ const SecteurDetailPage: React.FC = () => {
         try {
             const result = await dossierEtudeService.importExcel(sectorName, pendingImportFile, mode);
             alert(`✅ ${result.imported} dossiers importés (${mode === 'add' ? 'ajout' : 'remplacement'})`);
-            fetchData(1);
+            fetchData();
         } catch {
             alert('Échec de l\'import Excel');
         } finally {
@@ -667,14 +688,6 @@ const SecteurDetailPage: React.FC = () => {
         setShowImportDialog(false);
         setPendingImportFile(null);
         if (importFileRef.current) importFileRef.current.value = '';
-    };
-
-    const pageButtons = () => {
-        const pages: number[] = [];
-        const total = pagination.totalPages;
-        const current = pagination.page;
-        for (let i = Math.max(1, current - 2); i <= Math.min(total, current + 2); i++) pages.push(i);
-        return pages;
     };
 
     // ─── Computed stats ───────────────────────────────────────
@@ -770,6 +783,28 @@ const SecteurDetailPage: React.FC = () => {
                 </div>
             </div>
 
+            {vueMetric === 'dreKo' && (
+                <div className="secteur-metric-banner">
+                    <div className="secteur-metric-banner-text">
+                        <span>
+                            {t('sector.metric_banner_dre_ko')}: <strong>{dossiersAfterMetric.length}</strong>{' '}
+                            {t('sector.dossier_count')}
+                        </span>
+                        {Number.isFinite(vueDreKoFromDashboard) &&
+                            vueDreKoFromDashboard !== dossiersAfterMetric.length && (
+                            <p className="secteur-metric-banner-hint">
+                                {t('sector.metric_dre_ko_vue_hint')
+                                    .replace('{{V}}', String(vueDreKoFromDashboard))
+                                    .replace('{{F}}', String(dossiersAfterMetric.length))}
+                            </p>
+                        )}
+                    </div>
+                    <button type="button" className="btn-clear-metric" onClick={clearVueMetric}>
+                        {t('sector.clear_metric_filter')}
+                    </button>
+                </div>
+            )}
+
             {/* Dynamic Table */}
             <div className="vue-global-section">
                 <h2>{t('sector.dossiers_title')} — {sectorName}</h2>
@@ -824,6 +859,12 @@ const SecteurDetailPage: React.FC = () => {
                                 <tr>
                                     <td colSpan={columns.length + 1} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
                                         Aucun dossier trouvé pour {sectorName}. Cliquez "Ajouter un dossier" pour commencer.
+                                    </td>
+                                </tr>
+                            ) : sortedDossiers.length === 0 ? (
+                                <tr>
+                                    <td colSpan={columns.length + (canEdit ? 1 : 0)} style={{ textAlign: 'center', padding: '2rem', color: '#6b7280' }}>
+                                        {t('sector.metric_filter_empty')}
                                     </td>
                                 </tr>
                             ) : (
@@ -935,22 +976,6 @@ const SecteurDetailPage: React.FC = () => {
                     </table>
                 </div>
             </div>
-
-            {/* Pagination */}
-            {pagination.totalPages > 1 && (
-                <div className="dossier-pagination">
-                    <span className="pagination-info">
-                        {t('sector.page')} {pagination.page} / {pagination.totalPages} — {pagination.total} {t('sector.dossier_count')}
-                    </span>
-                    <div className="pagination-buttons">
-                        <button className="btn-page" disabled={pagination.page <= 1} onClick={() => handlePageChange(pagination.page - 1)}>←</button>
-                        {pageButtons().map((p) => (
-                            <button key={p} className={`btn-page ${p === pagination.page ? 'active' : ''}`} onClick={() => handlePageChange(p)}>{p}</button>
-                        ))}
-                        <button className="btn-page" disabled={pagination.page >= pagination.totalPages} onClick={() => handlePageChange(pagination.page + 1)}>→</button>
-                    </div>
-                </div>
-            )}
 
             {/* Create/Edit Dossier Modal */}
             {showDossierModal && (

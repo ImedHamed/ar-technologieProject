@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage, LanguageToggle } from '../../i18n/i18n';
@@ -7,7 +7,25 @@ import suiviEtudeService from '../../services/suivi-etude.service';
 import type { SuiviEtudeRow, SuiviEtudeTotals } from '../../services/suivi-etude.service';
 import ImportModeDialog from '../../components/ImportModeDialog';
 import type { ImportMode } from '../../components/ImportModeDialog';
+import dossierEtudeService, { type DossierEtude } from '../../services/dossier-etude.service';
 import './AdminDashboardPage.css';
+
+const GLOBAL_DOSSIER_SEARCH_LIMIT = 500;
+
+function dossierDataPreview(data: Record<string, unknown> | undefined, maxLen = 160): string {
+    if (!data || typeof data !== 'object') return '—';
+    const parts: string[] = [];
+    for (const [k, v] of Object.entries(data)) {
+        if (v == null || v === '') continue;
+        const s = String(v).replace(/\s+/g, ' ').trim();
+        if (!s) continue;
+        const chunk = s.length > 48 ? `${k}: ${s.slice(0, 45)}…` : `${k}: ${s}`;
+        parts.push(chunk);
+        if (parts.join(' · ').length >= maxLen) break;
+    }
+    const out = parts.join(' · ');
+    return out.length > maxLen ? `${out.slice(0, maxLen - 1)}…` : (out || '—');
+}
 
 // All numeric fields for the form
 const NUMERIC_FIELDS: { key: keyof SuiviEtudeRow; label: string }[] = [
@@ -84,6 +102,11 @@ const AdminDashboardPage: React.FC = () => {
     const [showImportDialog, setShowImportDialog] = useState(false);
     const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
+    const [globalSearch, setGlobalSearch] = useState('');
+    const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
+    const [globalSearchHits, setGlobalSearchHits] = useState<DossierEtude[]>([]);
+    const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+
     const handleExportFull = async () => {
         setExporting(true);
         try {
@@ -128,9 +151,14 @@ const AdminDashboardPage: React.FC = () => {
     };
 
     // Filter rows by allowed secteurs
-    const filteredRows = allowedSecteurs.length > 0
-        ? rows.filter((r) => allowedSecteurs.includes(r.secteur))
-        : rows;
+    const filteredRows = useMemo(
+        () =>
+            allowedSecteurs.length > 0 ? rows.filter((r) => allowedSecteurs.includes(r.secteur)) : rows,
+        [rows, allowedSecteurs],
+    );
+
+    const globalSearchMoreThanLimit =
+        debouncedGlobalSearch && globalSearchHits.length >= GLOBAL_DOSSIER_SEARCH_LIMIT;
 
     const TABLE_COLUMNS = canEdit ? [...BASE_COLUMNS, 'ACTIONS'] : BASE_COLUMNS;
 
@@ -151,6 +179,39 @@ const AdminDashboardPage: React.FC = () => {
     useEffect(() => {
         fetchData();
     }, []);
+
+    useEffect(() => {
+        const t = window.setTimeout(() => setDebouncedGlobalSearch(globalSearch.trim()), 400);
+        return () => window.clearTimeout(t);
+    }, [globalSearch]);
+
+    useEffect(() => {
+        if (!debouncedGlobalSearch) {
+            setGlobalSearchHits([]);
+            setGlobalSearchLoading(false);
+            return;
+        }
+        let cancelled = false;
+        setGlobalSearchLoading(true);
+        dossierEtudeService
+            .getAll({
+                search: debouncedGlobalSearch,
+                page: 1,
+                limit: GLOBAL_DOSSIER_SEARCH_LIMIT,
+            })
+            .then((data) => {
+                if (!cancelled) setGlobalSearchHits(data.dossiers);
+            })
+            .catch(() => {
+                if (!cancelled) setGlobalSearchHits([]);
+            })
+            .finally(() => {
+                if (!cancelled) setGlobalSearchLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [debouncedGlobalSearch]);
 
     const handleAdd = () => {
         setEditingRow(null);
@@ -292,6 +353,66 @@ const AdminDashboardPage: React.FC = () => {
             {/* Main VUE GLOBAL Table */}
             <div className="vue-global-section">
                 <h2>{t('dashboard.vue_globale')}</h2>
+                <div className="vue-global-search-row">
+                    <input
+                        type="search"
+                        className="dashboard-global-search-input"
+                        placeholder={t('dashboard.search_all_dossiers')}
+                        value={globalSearch}
+                        onChange={(e) => setGlobalSearch(e.target.value)}
+                        aria-label={t('dashboard.search_all_dossiers')}
+                    />
+                </div>
+                {debouncedGlobalSearch && (
+                    <div className="global-dossier-search-panel">
+                        <h3 className="global-dossier-search-title">
+                            {t('dashboard.search_results_title')}
+                            {globalSearchLoading ? ` — ${t('common.loading')}` : ` (${globalSearchHits.length})`}
+                        </h3>
+                        {!globalSearchLoading && globalSearchHits.length === 0 && (
+                            <p className="global-dossier-search-empty">{t('dashboard.search_no_hits')}</p>
+                        )}
+                        {!globalSearchLoading && globalSearchHits.length > 0 && (
+                            <>
+                                <div className="excel-table-wrapper global-dossier-search-wrapper">
+                                    <table className="excel-table global-dossier-search-table">
+                                        <thead>
+                                            <tr>
+                                                <th>{t('dashboard.search_col_sector')}</th>
+                                                <th>{t('dashboard.search_col_preview')}</th>
+                                                <th>{t('dashboard.search_col_open')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {globalSearchHits.map((d) => (
+                                                <tr key={d.id}>
+                                                    <td className="global-search-sector">{d.secteur}</td>
+                                                    <td className="global-search-preview">
+                                                        {dossierDataPreview(d.data as Record<string, unknown>)}
+                                                    </td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="btn-open-sector"
+                                                            onClick={() =>
+                                                                navigate(`/admin/secteur/${encodeURIComponent(d.secteur)}`)
+                                                            }
+                                                        >
+                                                            {t('dashboard.search_open_sector')}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {globalSearchMoreThanLimit && (
+                                    <p className="global-dossier-search-cap">{t('dashboard.search_cap_hint')}</p>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
                 <div className="excel-table-wrapper">
                     <table className="excel-table" id="vue-global-table">
                         <thead>
@@ -323,9 +444,24 @@ const AdminDashboardPage: React.FC = () => {
                                             </td>
                                             {NUMERIC_FIELDS.map((field) => (
                                                 <td key={field.key}>
-                                                    <span className={getCellClass(row[field.key] as number, field.key)}>
-                                                        {row[field.key]}
-                                                    </span>
+                                                    {field.key === 'dreKo' ? (
+                                                        <button
+                                                            type="button"
+                                                            className={`${getCellClass(row[field.key] as number, field.key)} dre-ko-cell-btn`}
+                                                            onClick={() =>
+                                                                navigate(
+                                                                    `/admin/secteur/${encodeURIComponent(row.secteur)}?metric=dreKo&vueDreKo=${encodeURIComponent(String(row.dreKo ?? 0))}`,
+                                                                )
+                                                            }
+                                                            title={t('dashboard.dre_ko_nav_hint')}
+                                                        >
+                                                            {row[field.key]}
+                                                        </button>
+                                                    ) : (
+                                                        <span className={getCellClass(row[field.key] as number, field.key)}>
+                                                            {row[field.key]}
+                                                        </span>
+                                                    )}
                                                 </td>
                                             ))}
                                             {canEdit && (
