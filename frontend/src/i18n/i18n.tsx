@@ -36,6 +36,10 @@ const translations: Record<Lang, Record<string, string>> = {
         'login.choose_subtitle': 'Sélectionnez la section à consulter',
         'login.rcc_desc': 'Tableau de bord global',
         'login.bein_desc': 'Section BEIN uniquement',
+        'login.bein_choice_prompt': 'Vous voulez ouvrir quelle section BEIN ?',
+        'login.bein_only_label': 'BEIN',
+        'login.bein_a_payer_label': 'BEIN A PAYER',
+        'login.bein_a_payer_desc': 'Section BEIN des dossiers à payer',
 
         // ── Register ──
         'register.title': 'Créer un compte',
@@ -117,9 +121,9 @@ const translations: Record<Lang, Record<string, string>> = {
         'sector.metric_banner_dre_ko': 'Filtre DRE KO (vue globale)',
         'sector.clear_metric_filter': 'Afficher tous les dossiers',
         'sector.metric_filter_empty':
-            'Aucun dossier : aucune colonne liée au DRE (DRE, Date DRE, DRE KO, etc.) ne contient KO, NC ou NON. Vérifiez les noms de colonnes dans les données ou lancez un recalcul.',
+            'Aucun dossier : aucune colonne liée au DRE (DRE, Date DRE, DRE KO, etc.) ne contient une date DRE <= aujourd\'hui. Vérifiez les noms de colonnes dans les données ou lancez un recalcul.',
         'sector.metric_dre_ko_vue_hint':
-            'Écart : la vue globale affichait {{V}} DRE KO (import ou dernier enregistrement). Ici {{F}} dossier(s) avec uniquement KO, NC ou NON dans la colonne DRE (N/C = NC). Après recalcul depuis les dossiers, le total peut se mettre à jour.',
+            'Écart : la vue globale affichait {{V}} DRE KO (import ou dernier enregistrement). Ici {{F}} dossier(s) avec une date DRE <= aujourd\'hui (règle Excel NB.SI). Après recalcul depuis les dossiers, le total peut se mettre à jour.',
 
         // ── User Management ──
         'users.title': '👥 Gestion des Utilisateurs',
@@ -184,6 +188,10 @@ const translations: Record<Lang, Record<string, string>> = {
         'login.choose_subtitle': 'Select which section to view',
         'login.rcc_desc': 'Global Dashboard',
         'login.bein_desc': 'BEIN Section only',
+        'login.bein_choice_prompt': 'Which BEIN section do you want to open?',
+        'login.bein_only_label': 'BEIN',
+        'login.bein_a_payer_label': 'BEIN TO PAY',
+        'login.bein_a_payer_desc': 'BEIN section for dossiers to pay',
 
         // ── Register ──
         'register.title': 'Create Account',
@@ -265,9 +273,9 @@ const translations: Record<Lang, Record<string, string>> = {
         'sector.metric_banner_dre_ko': 'DRE KO filter (global view)',
         'sector.clear_metric_filter': 'Show all dossiers',
         'sector.metric_filter_empty':
-            'No dossier: no DRE-related column (DRE, Date DRE, DRE KO, etc.) contains KO, NC or NON. Check column names in the data or run a recalc.',
+            'No dossier: no DRE-related column (DRE, Date DRE, DRE KO, etc.) contains a DRE date <= today. Check column names in the data or run a recalc.',
         'sector.metric_dre_ko_vue_hint':
-            'Difference: the global view showed {{V}} DRE KO (import or last saved total). Here {{F}} dossier(s) with only KO, NC or NON in the DRE column (N/C counts as NC). After a recalc from dossiers, the total may update.',
+            'Difference: the global view showed {{V}} DRE KO (import or last saved total). Here {{F}} dossier(s) with DRE date <= today (Excel COUNTIF rule). After a recalc from dossiers, the total may update.',
 
         // ── User Management ──
         'users.title': '👥 User Management',

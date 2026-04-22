@@ -7,7 +7,7 @@ import suiviEtudeService from '../../services/suivi-etude.service';
 import type { DossierEtude, ColumnConfig } from '../../services/dossier-etude.service';
 import ImportModeDialog from '../../components/ImportModeDialog';
 import type { ImportMode } from '../../components/ImportModeDialog';
-import { isDreKoDossierRow } from '../../utils/dre-ko-filter';
+import { isDreKoDossierRow, isDreKoDateCellValue } from '../../utils/dre-ko-filter';
 import './SecteurDetailPage.css';
 
 /** Load all dossiers for a secteur in one request (no page 1 / page 2 UI). */
@@ -16,6 +16,14 @@ const SECTEUR_DOSSIER_FETCH_LIMIT = 100_000;
 // 🔗 POI SharePoint link — Replace with your SharePoint base URL
 // The POI value will be appended to this URL
 const POI_BASE_URL = 'https://your-sharepoint-site.sharepoint.com/sites/poi/';
+
+function hasDreKoAnyDateValue(data: Record<string, unknown>): boolean {
+    for (const v of Object.values(data)) {
+        if (isDreKoDateCellValue(v)) return true;
+        if (Array.isArray(v) && v.some((item) => isDreKoDateCellValue(item))) return true;
+    }
+    return false;
+}
 
 function isPoiColumn(col: ColumnConfig): boolean {
     return col.key === 'POI' || col.label.toUpperCase() === 'POI';
@@ -257,6 +265,7 @@ const SecteurDetailPage: React.FC = () => {
     const vueMetric = searchParams.get('metric');
     const vueDreKoParam = searchParams.get('vueDreKo');
     const vueDreKoFromDashboard = vueDreKoParam !== null && vueDreKoParam !== '' ? Number.parseInt(vueDreKoParam, 10) : NaN;
+    const recalcMetricDoneRef = useRef<string | null>(null);
 
     // Block access if secteur is not in allowedSecteurs
     if (allowedSecteurs.length > 0 && !allowedSecteurs.includes(sectorName)) {
@@ -405,8 +414,18 @@ const SecteurDetailPage: React.FC = () => {
 
     const dossiersAfterMetric = React.useMemo(() => {
         if (vueMetric !== 'dreKo' || !columns.length) return dossiers;
-        return dossiers.filter((d) => isDreKoDossierRow(d.data as Record<string, unknown>, columns));
-    }, [dossiers, columns, vueMetric]);
+        const strict = dossiers.filter((d) => isDreKoDossierRow(d.data as Record<string, unknown>, columns));
+        if (
+            strict.length === 0 &&
+            dossiers.length > 0 &&
+            Number.isFinite(vueDreKoFromDashboard) &&
+            vueDreKoFromDashboard > 0
+        ) {
+            const relaxed = dossiers.filter((d) => hasDreKoAnyDateValue(d.data as Record<string, unknown>));
+            if (relaxed.length > 0) return relaxed;
+        }
+        return strict;
+    }, [dossiers, columns, vueMetric, vueDreKoFromDashboard]);
 
     const sortedDossiers = React.useMemo(() => {
         if (!sortKey) return dossiersAfterMetric;
@@ -496,6 +515,41 @@ const SecteurDetailPage: React.FC = () => {
         fetchSectorId();
         fetchData();
     }, [fetchSectorId, fetchData]);
+
+    useEffect(() => {
+        if (vueMetric !== 'dreKo' || !sectorName) {
+            recalcMetricDoneRef.current = null;
+            return;
+        }
+        const key = `${sectorName}::dreKo`;
+        if (recalcMetricDoneRef.current === key) return;
+        recalcMetricDoneRef.current = key;
+
+        let cancelled = false;
+        dossierEtudeService
+            .recalcSector(sectorName)
+            .then((res) => {
+                if (cancelled) return;
+                const latest = Number(res?.row?.dreKo ?? NaN);
+                if (!Number.isFinite(latest)) return;
+                setSearchParams(
+                    (prev) => {
+                        const next = new URLSearchParams(prev);
+                        next.set('metric', 'dreKo');
+                        next.set('vueDreKo', String(latest));
+                        return next;
+                    },
+                    { replace: true },
+                );
+            })
+            .catch((err) => {
+                console.error('Failed to recalc sector DRE KO from detail view:', err);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [vueMetric, sectorName, setSearchParams]);
 
     // ─── Dossier CRUD ─────────────────────────────────────────
 

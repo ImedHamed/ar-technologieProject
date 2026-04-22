@@ -58,6 +58,11 @@ class DossierEtudeService {
         await apiClient.delete(`/dossier-etudes/${id}`);
     }
 
+    async recalcSector(secteur: string): Promise<{ message: string; row: any | null }> {
+        const response = await apiClient.post<{ message: string; row: any | null }>('/dossier-etudes/recalc-sector', { secteur });
+        return response.data;
+    }
+
     async exportExcel(secteur: string): Promise<void> {
         const response = await apiClient.get(`/excel/export`, {
             params: { secteur },

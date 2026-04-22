@@ -1,6 +1,29 @@
 import { Request, Response } from 'express';
 import prisma from '../config/database';
 import * as XLSX from 'xlsx';
+import { countDreKoInDossiers } from '../utils/dre-ko-filter';
+
+function normalizeImportedSecteurName(raw: unknown): string {
+    if (raw == null) return '';
+    let s = String(raw).replace(/[\u00A0\u200B-\u200D\uFEFF]/g, ' ').trim();
+    if (!s) return '';
+
+    // Handle Excel-style formulas referencing a sheet name, e.g. ='BEIN A PAYER '!A1
+    if (s.startsWith('=')) {
+        const quoted = s.match(/^=\s*'([^']+?)'\s*!?.*$/);
+        if (quoted) {
+            s = quoted[1];
+        } else {
+            const unquoted = s.match(/^=\s*([^!]+?)\s*!?.*$/);
+            if (unquoted) s = unquoted[1];
+        }
+    }
+
+    s = s.replace(/^['"]+|['"]+$/g, '');
+    s = s.replace(/!+$/g, '');
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+}
 
 /**
  * Derive column config dynamically from dossier data keys.
@@ -108,11 +131,14 @@ async function recalcSectorCounts(secteur: string) {
             if (field) counts[field] = (counts[field] || 0) + 1;
         }
 
+        const dreKo = countDreKoInDossiers(dossiers, colConfig);
+
         if (sector) {
             await prisma.suiviEtude.update({
                 where: { secteur },
                 data: {
                     nbDossiers: total,
+                    dreKo,
                     vtAFaire: counts.vtAFaire || 0,
                     aRemonter: counts.aRemonter || 0,
                     retourVt: counts.retourVt || 0,
@@ -504,7 +530,7 @@ export class ExcelController {
                 for (let i = 1; i < vueRows.length; i++) {
                     const row = vueRows[i] as any[];
                     if (!row || !row[0] || typeof row[0] !== 'string') continue;
-                    const secteur = row[0].trim();
+                    const secteur = normalizeImportedSecteurName(row[0]);
                     if (!secteur) continue;
                     if (ExcelController.VUE_GLOBAL_SKIP.some(s => secteur.toUpperCase().includes(s))) continue;
 
@@ -560,7 +586,7 @@ export class ExcelController {
                         if (!row || row.length < 3) continue;
                         const be = parseInt(row[0]) || 0;
                         const chaff = parseInt(row[1]) || 0;
-                        const secteur = typeof row[2] === 'string' ? row[2].trim() : null;
+                        const secteur = normalizeImportedSecteurName(row[2]);
                         if (!secteur) continue;
                         try {
                             await prisma.suiviEtude.update({
@@ -595,7 +621,8 @@ export class ExcelController {
                 const nonEmptyHeaders = headers.filter(Boolean);
 
                 // Ensure secteur exists in suivi_etudes
-                const secteur = sheetName;
+                const secteur = normalizeImportedSecteurName(sheetName);
+                if (!secteur) continue;
                 const existing = await prisma.suiviEtude.findUnique({ where: { secteur } });
                 // Always build columnConfig from actual Excel headers
                 const excelColumnConfig = nonEmptyHeaders.map((h, idx) => ({

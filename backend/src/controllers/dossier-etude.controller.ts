@@ -337,6 +337,43 @@ export class DossierEtudeController {
         }
     }
     /**
+     * POST /api/v1/dossier-etudes/recalc-sector
+     * Recalculate one sector counts from actual dossier data
+     */
+    async recalcSector(req: AuthRequest, res: Response): Promise<void> {
+        try {
+            if (!req.user) {
+                res.status(401).json({ error: 'Not authenticated' });
+                return;
+            }
+
+            const secteurRaw = req.body?.secteur;
+            const secteur = typeof secteurRaw === 'string' ? secteurRaw.trim() : '';
+            if (!secteur) {
+                res.status(400).json({ error: 'Secteur is required' });
+                return;
+            }
+
+            const scope = await getUserSecteurScope(req.user.userId);
+            if (scope.mode === 'restrict' && !scope.secteurs.includes(secteur)) {
+                res.status(403).json({ error: 'Access denied to this sector' });
+                return;
+            }
+
+            await recalcSectorCounts(secteur);
+            const row = await prisma.suiviEtude.findUnique({ where: { secteur } });
+
+            res.json({
+                message: `Recalculated counts for sector ${secteur}`,
+                row,
+            });
+        } catch (error: any) {
+            console.error('RecalcSector error:', error);
+            res.status(500).json({ error: 'Failed to recalculate sector' });
+        }
+    }
+
+    /**
      * POST /api/v1/dossier-etudes/recalc-all
      * Recalculate all sector counts from actual dossier data
      */

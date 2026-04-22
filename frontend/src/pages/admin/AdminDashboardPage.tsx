@@ -106,6 +106,7 @@ const AdminDashboardPage: React.FC = () => {
     const [debouncedGlobalSearch, setDebouncedGlobalSearch] = useState('');
     const [globalSearchHits, setGlobalSearchHits] = useState<DossierEtude[]>([]);
     const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
+    const [openingDreKoSecteur, setOpeningDreKoSecteur] = useState<string | null>(null);
 
     const handleExportFull = async () => {
         setExporting(true);
@@ -238,6 +239,32 @@ const AdminDashboardPage: React.FC = () => {
             fetchData();
         } catch (error) {
             alert('Échec de la suppression');
+        }
+    };
+
+    const handleOpenDreKo = async (row: SuiviEtudeRow) => {
+        let dreKoToShow = Number(row.dreKo ?? 0);
+        setOpeningDreKoSecteur(row.secteur);
+        try {
+            const recalc = await dossierEtudeService.recalcSector(row.secteur);
+            if (recalc.row) {
+                const updated = recalc.row as SuiviEtudeRow;
+                dreKoToShow = Number(updated.dreKo ?? dreKoToShow);
+                setRows((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+            }
+            const fresh = await suiviEtudeService.getAll();
+            setRows(fresh.rows);
+            setTotals(fresh.totals);
+            setTauxNonConformite(fresh.tauxNonConformite);
+            const latest = fresh.rows.find((r) => r.secteur === row.secteur);
+            if (latest) dreKoToShow = Number(latest.dreKo ?? dreKoToShow);
+        } catch (error) {
+            console.error('Failed to recalc sector before DRE KO navigation:', error);
+        } finally {
+            setOpeningDreKoSecteur(null);
+            navigate(
+                `/admin/secteur/${encodeURIComponent(row.secteur)}?metric=dreKo&vueDreKo=${encodeURIComponent(String(dreKoToShow))}`,
+            );
         }
     };
 
@@ -437,7 +464,7 @@ const AdminDashboardPage: React.FC = () => {
                                                 <a
                                                     href="#"
                                                     onClick={(e) => { e.preventDefault(); navigate(`/admin/secteur/${encodeURIComponent(row.secteur)}`); }}
-                                                    style={{ color: '#1b5e20', textDecoration: 'underline', cursor: 'pointer', fontWeight: 700 }}
+                                                    className="dashboard-sector-link"
                                                 >
                                                     {row.secteur}
                                                 </a>
@@ -448,14 +475,11 @@ const AdminDashboardPage: React.FC = () => {
                                                         <button
                                                             type="button"
                                                             className={`${getCellClass(row[field.key] as number, field.key)} dre-ko-cell-btn`}
-                                                            onClick={() =>
-                                                                navigate(
-                                                                    `/admin/secteur/${encodeURIComponent(row.secteur)}?metric=dreKo&vueDreKo=${encodeURIComponent(String(row.dreKo ?? 0))}`,
-                                                                )
-                                                            }
+                                                            onClick={() => handleOpenDreKo(row)}
+                                                            disabled={openingDreKoSecteur === row.secteur}
                                                             title={t('dashboard.dre_ko_nav_hint')}
                                                         >
-                                                            {row[field.key]}
+                                                            {openingDreKoSecteur === row.secteur ? '…' : row[field.key]}
                                                         </button>
                                                     ) : (
                                                         <span className={getCellClass(row[field.key] as number, field.key)}>

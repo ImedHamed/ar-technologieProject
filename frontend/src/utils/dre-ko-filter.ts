@@ -1,6 +1,6 @@
 /**
- * Filtre DRE KO (vue Excel) : uniquement KO, NC, NON explicites.
- * Colonnes / clés liées au DRE détectées de façon robuste (Date DRE, DRE KO, clé « DRE » dans le JSON, etc.).
+ * Filtre DRE KO (vue Excel) : NB.SI(colonne_DRE; "<=" & AUJOURDHUI()).
+ * Un dossier est DRE KO si une valeur de colonne liée au DRE est une date <= aujourd'hui.
  * À garder aligné avec backend/src/utils/dre-ko-filter.ts
  */
 
@@ -26,6 +26,61 @@ export function isDreRelatedColumn(col: { key: string; label: string }): boolean
     if (compact.includes('dreko')) return true;
     if (key.includes('dre') || label.includes('dre')) return true;
     return false;
+}
+
+function excelSerialToDate(serial: number): Date | null {
+    if (!Number.isFinite(serial)) return null;
+    // Excel serial (1900 date system)
+    const ms = Math.round((serial - 25569) * 86400 * 1000);
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function parsePotentialDate(raw: unknown): Date | null {
+    if (raw == null) return null;
+
+    if (raw instanceof Date) {
+        return isNaN(raw.getTime()) ? null : raw;
+    }
+
+    if (typeof raw === 'number') {
+        return excelSerialToDate(raw);
+    }
+
+    let s = String(raw).trim();
+    if (!s || s === '-') return null;
+    if (s.startsWith('=')) s = s.replace(/^=\s*/, '').trim();
+    if (!s || s === '-') return null;
+
+    const fr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (fr) {
+        const [, d, m, y] = fr;
+        const date = new Date(Number(y), Number(m) - 1, Number(d));
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+    if (iso) {
+        const [, y, m, d] = iso;
+        const date = new Date(Number(y), Number(m) - 1, Number(d));
+        return isNaN(date.getTime()) ? null : date;
+    }
+
+    const asNum = Number(s.replace(',', '.'));
+    if (Number.isFinite(asNum) && /^\d+(?:[.,]\d+)?$/.test(s)) {
+        const excelDate = excelSerialToDate(asNum);
+        if (excelDate) return excelDate;
+    }
+
+    const date = new Date(s);
+    return isNaN(date.getTime()) ? null : date;
+}
+
+export function isDreKoDateCellValue(raw: unknown, now: Date = new Date()): boolean {
+    const d = parsePotentialDate(raw);
+    if (!d) return false;
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return d.getTime() <= todayEnd.getTime();
 }
 
 export function normalizeExplicitDreKoToken(raw: unknown): 'ko' | 'nc' | 'non' | null {
@@ -86,7 +141,7 @@ function collectDreCandidateValues(
 
 export function isDreKoDossierRow(data: Record<string, unknown>, columns: ColumnConfig[]): boolean {
     for (const v of collectDreCandidateValues(data, columns)) {
-        if (isExplicitDreKoCellValue(v)) return true;
+        if (isDreKoDateCellValue(v)) return true;
     }
     return false;
 }

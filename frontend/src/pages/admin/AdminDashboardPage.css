@@ -43,7 +43,7 @@
     align-items: center;
     gap: 0.35rem;
     padding: 0.5rem 1rem;
-    background: #4caf50;
+    background: #2e7d32;
     color: #fff;
     border: none;
     border-radius: 6px;
@@ -54,8 +54,8 @@
 }
 
 .btn-add:hover {
-    opacity: 0.85;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    background: #1b5e20;
+    box-shadow: 0 4px 12px rgba(46, 125, 50, 0.35);
 }
 
 .btn-export-excel,
@@ -160,7 +160,7 @@
 }
 
 .stat-highlight.dossier-be::before {
-    background: linear-gradient(135deg, #43a047, #66bb6a);
+    background: linear-gradient(135deg, #1b5e20, #43a047);
 }
 
 .stat-highlight.dossier-chaff {
@@ -266,7 +266,7 @@
 
 .global-search-sector {
     font-weight: 800;
-    color: #1b5e20;
+    color: #145a1f;
     white-space: nowrap;
 }
 
@@ -285,13 +285,13 @@
     font-weight: 700;
     border: none;
     border-radius: 6px;
-    background: #2e7d32;
+    background: #1b5e20;
     color: #fff;
     cursor: pointer;
 }
 
 .btn-open-sector:hover {
-    background: #1b5e20;
+    background: #0f3d14;
 }
 
 button.dre-ko-cell-btn {
@@ -392,6 +392,24 @@ button.dre-ko-cell-btn:focus-visible {
     font-size: 0.84rem;
 }
 
+.dashboard-sector-link {
+    color: #145a1f;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.dashboard-sector-link:hover {
+    color: #0f3d14;
+}
+
+.dashboard-sector-link:focus-visible {
+    outline: 2px solid #fb8c00;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
 .cell-value {
     font-weight: 700;
     display: inline-block;
@@ -407,8 +425,48 @@ button.dre-ko-cell-btn:focus-visible {
 }
 
 .cell-value.positive {
-    color: #1b7a37;
-    background: #e6f7ee;
+    color: #145a1f;
+    background: #dff5e7;
+    border: 1px solid #81c995;
+}
+
+/* Better dark-mode contrast for green accents in VUE GLOBAL */
+[data-theme="dark"] .btn-add {
+    background: #2e7d32;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-add:hover {
+    background: #43a047;
+    box-shadow: 0 4px 14px rgba(67, 160, 71, 0.4);
+}
+
+[data-theme="dark"] .global-search-sector {
+    color: #86efac;
+}
+
+[data-theme="dark"] .btn-open-sector {
+    background: #22c55e;
+    color: #052e16;
+    font-weight: 800;
+}
+
+[data-theme="dark"] .btn-open-sector:hover {
+    background: #4ade80;
+}
+
+[data-theme="dark"] .cell-value.positive {
+    color: #dcfce7;
+    background: rgba(34, 197, 94, 0.22);
+    border: 1px solid #22c55e;
+}
+
+[data-theme="dark"] .dashboard-sector-link {
+    color: #86efac;
+}
+
+[data-theme="dark"] .dashboard-sector-link:hover {
+    color: #bbf7d0;
 }
 
 .cell-value.warning {

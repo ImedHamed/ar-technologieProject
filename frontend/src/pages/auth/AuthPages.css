@@ -459,39 +459,134 @@
   color: #1e88e5;
 }
 
+.bein-choice-panel {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid #e8e8e8;
+}
+
+.bein-choice-title {
+  margin: 0 0 0.7rem;
+  font-size: 0.86rem;
+  color: #607d8b;
+  font-weight: 700;
+}
+
+.bein-choice-buttons {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.bein-subchoice-btn {
+  flex: 1;
+  border: 1.5px solid #bbdefb;
+  border-radius: 10px;
+  background: #f5fbff;
+  color: #0d47a1;
+  padding: 0.65rem 0.7rem;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  transition: all 0.2s;
+}
+
+.bein-subchoice-btn:hover {
+  transform: translateY(-1px);
+  border-color: #1e88e5;
+  box-shadow: 0 6px 16px rgba(30, 136, 229, 0.2);
+}
+
+.bein-subchoice-secondary {
+  border-color: #2e7d32;
+  background: #2e7d32;
+  color: #ffffff;
+}
+
+.bein-subchoice-secondary:hover {
+  border-color: #43a047;
+  background: #388e3c;
+  box-shadow: 0 6px 16px rgba(67, 160, 71, 0.35);
+}
+
+.bein-subchoice-secondary .bein-subchoice-desc {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.bein-subchoice-label {
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.bein-subchoice-desc {
+  font-size: 0.72rem;
+  color: #607d8b;
+  font-weight: 600;
+}
+
 /* Dark mode */
 [data-theme="dark"] .choice-card {
-  background: #1e293b;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  background: #0f172a;
+  border: 1px solid #334155;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
 }
 
 [data-theme="dark"] .choice-title {
-  color: #f1f5f9;
+  color: #f8fafc;
 }
 
 [data-theme="dark"] .choice-subtitle {
-  color: #94a3b8;
+  color: #cbd5e1;
 }
 
 [data-theme="dark"] .choice-desc {
-  color: #64748b;
+  color: #cbd5e1;
 }
 
 [data-theme="dark"] .choice-btn {
-  border-color: #334155;
-  background: #1e293b;
+  border-color: #475569;
+  background: #111827;
 }
 
 [data-theme="dark"] .choice-btn:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
 }
 
 [data-theme="dark"] .choice-rcc:hover {
-  border-color: #fb8c00;
-  background: linear-gradient(135deg, rgba(251, 140, 0, 0.08), rgba(251, 140, 0, 0.04));
+  border-color: #ffb74d;
+  background: linear-gradient(135deg, rgba(251, 140, 0, 0.22), rgba(251, 140, 0, 0.1));
 }
 
 [data-theme="dark"] .choice-bein:hover {
-  border-color: #1e88e5;
-  background: linear-gradient(135deg, rgba(30, 136, 229, 0.08), rgba(30, 136, 229, 0.04));
+  border-color: #64b5f6;
+  background: linear-gradient(135deg, rgba(30, 136, 229, 0.24), rgba(30, 136, 229, 0.1));
+}
+
+[data-theme="dark"] .bein-choice-panel {
+  border-top-color: #475569;
+}
+
+[data-theme="dark"] .bein-choice-title {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .bein-subchoice-btn {
+  background: #0b2239;
+  border-color: #3b82f6;
+  color: #eff6ff;
+}
+
+[data-theme="dark"] .bein-subchoice-secondary {
+  background: #166534;
+  border-color: #4ade80;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .bein-subchoice-desc {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .bein-subchoice-secondary .bein-subchoice-desc {
+  color: #dcfce7;
 }
