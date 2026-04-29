@@ -13,9 +13,17 @@ import './SecteurDetailPage.css';
 /** Load all dossiers for a secteur in one request (no page 1 / page 2 UI). */
 const SECTEUR_DOSSIER_FETCH_LIMIT = 100_000;
 
-// 🔗 POI SharePoint link — Replace with your SharePoint base URL
-// The POI value will be appended to this URL
-const POI_BASE_URL = 'https://your-sharepoint-site.sharepoint.com/sites/poi/';
+// SharePoint folder browser URL.
+const SHAREPOINT_BASE_URL = "https://artechnologie13.sharepoint.com/sites/Bureaud'tudeAR-TECHNOLOGIE/DOSSIER%20POI/Forms/AllItems.aspx?id=%2Fsites%2FBureaud%27tudeAR-TECHNOLOGIE%2FDOSSIER%20POI%2F";
+
+function buildSharePointFolderUrl(folderPath: string): string {
+    const normalizedPath = String(folderPath).trim().replace(/^\/+/, '');
+    const encodedPath = normalizedPath
+        .split('/')
+        .map((segment) => encodeURIComponent(segment))
+        .join('/');
+    return `${SHAREPOINT_BASE_URL}${encodedPath}`;
+}
 
 function hasDreKoAnyDateValue(data: Record<string, unknown>): boolean {
     for (const v of Object.values(data)) {
@@ -27,6 +35,12 @@ function hasDreKoAnyDateValue(data: Record<string, unknown>): boolean {
 
 function isPoiColumn(col: ColumnConfig): boolean {
     return col.key === 'POI' || col.label.toUpperCase() === 'POI';
+}
+
+function isOeieColumn(col: ColumnConfig): boolean {
+    const key = col.key.toLowerCase();
+    const label = col.label.toLowerCase();
+    return key === 'codeoeie' || label === 'code oeie' || label === 'oeie';
 }
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -994,7 +1008,17 @@ const SecteurDetailPage: React.FC = () => {
                                                                 )
                                                             ) : isPoiColumn(col) && getDataValue(d.data, col) ? (
                                                                 <a
-                                                                    href={`${POI_BASE_URL}${getDataValue(d.data, col)}`}
+                                                                    href={buildSharePointFolderUrl(String(getDataValue(d.data, col)))}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="poi-link"
+                                                                    onDoubleClick={(e) => { e.preventDefault(); if (canEdit) startInlineEdit(d, col); }}
+                                                                >
+                                                                    {isSaving ? '⏳...' : `🔗 ${getCellValue(d.data, col)}`}
+                                                                </a>
+                                                            ) : sectorName.toUpperCase() === 'BEIN' && isOeieColumn(col) && getDataValue(d.data, col) ? (
+                                                                <a
+                                                                    href={buildSharePointFolderUrl(`BEIN/${String(getDataValue(d.data, col))}`)}
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"
                                                                     className="poi-link"
