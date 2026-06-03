@@ -89,6 +89,14 @@ const translations: Record<Lang, Record<string, string>> = {
         'dashboard.search_open_sector': 'Ouvrir le secteur',
         'dashboard.search_cap_hint': `Affichage limité aux ${500} premiers résultats. Affinez la recherche si besoin.`,
         'dashboard.dre_ko_nav_hint': 'Voir uniquement les dossiers DRE KO dans ce secteur',
+        'dashboard.sync_onedrive': '🔄 Sync OneDrive',
+        'dashboard.syncing': '⏳ Synchronisation...',
+        'dashboard.sync_success': '✅ Sync terminée',
+        'dashboard.sync_failed': 'Échec de la synchronisation OneDrive',
+        'dashboard.sync_file': 'Fichier',
+        'dashboard.sync_last_modified': 'Dernière modif.',
+        'dashboard.sync_not_configured': 'Chemin Excel OneDrive non configuré',
+        'dashboard.sync_file_missing': 'Fichier Excel introuvable',
 
         // ── Sector Detail ──
         'sector.dossiers_title': 'Dossiers',
@@ -241,6 +249,14 @@ const translations: Record<Lang, Record<string, string>> = {
         'dashboard.search_open_sector': 'Open sector',
         'dashboard.search_cap_hint': `Showing up to ${500} results. Refine your search if needed.`,
         'dashboard.dre_ko_nav_hint': 'Show only DRE KO dossiers in this sector',
+        'dashboard.sync_onedrive': '🔄 Sync OneDrive',
+        'dashboard.syncing': '⏳ Syncing...',
+        'dashboard.sync_success': '✅ Sync complete',
+        'dashboard.sync_failed': 'OneDrive sync failed',
+        'dashboard.sync_file': 'File',
+        'dashboard.sync_last_modified': 'Last modified',
+        'dashboard.sync_not_configured': 'OneDrive Excel path not configured',
+        'dashboard.sync_file_missing': 'Excel file not found',
 
         // ── Sector Detail ──
         'sector.dossiers_title': 'Files',

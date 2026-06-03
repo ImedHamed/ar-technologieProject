@@ -107,6 +107,30 @@ class SuiviEtudeService {
         });
         return response.data;
     }
+
+    async getOneDriveStatus(): Promise<{
+        configured: boolean;
+        exists?: boolean;
+        path?: string;
+        filename?: string;
+        sizeBytes?: number;
+        lastModified?: string;
+        error?: string;
+    }> {
+        const response = await apiClient.get('/excel/onedrive-status');
+        return response.data;
+    }
+
+    async syncOneDrive(mode: 'add' | 'replace' = 'replace'): Promise<{
+        secteursImported: number;
+        totalDossiers: number;
+        mode: string;
+        filename: string;
+        fileLastModified: string;
+    }> {
+        const response = await apiClient.post('/excel/sync-onedrive', { mode });
+        return response.data;
+    }
 }
 
 export default new SuiviEtudeService();

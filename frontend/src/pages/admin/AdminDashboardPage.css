@@ -98,6 +98,36 @@
     cursor: not-allowed;
 }
 
+.btn-sync-onedrive {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: linear-gradient(135deg, #7c3aed, #6366f1);
+    color: #fff;
+}
+
+.btn-sync-onedrive:hover:not(:disabled) {
+    background: linear-gradient(135deg, #6d28d9, #4f46e5);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+}
+
+.btn-sync-onedrive:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@keyframes spin-sync {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* ---- Stats Cards (Creative Tim style) ---- */
 .stats-row {
     display: flex;
@@ -779,7 +809,8 @@ button.dre-ko-cell-btn:focus-visible {
 
     .header-actions .btn-add,
     .header-actions .btn-export-excel,
-    .header-actions .btn-import-excel {
+    .header-actions .btn-import-excel,
+    .header-actions .btn-sync-onedrive {
         flex: 1 1 auto;
         justify-content: center;
         min-height: 44px;

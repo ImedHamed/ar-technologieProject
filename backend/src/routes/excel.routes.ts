@@ -37,4 +37,18 @@ router.get('/export-full', excelController.exportFull.bind(excelController));
  */
 router.post('/import-full', upload.single('file'), excelController.importFull.bind(excelController));
 
+/**
+ * @route   GET /api/v1/excel/onedrive-status
+ * @desc    Get status of the configured OneDrive Excel file
+ * @access  Private
+ */
+router.get('/onedrive-status', excelController.getOneDriveStatus.bind(excelController));
+
+/**
+ * @route   POST /api/v1/excel/sync-onedrive
+ * @desc    Sync data from the local OneDrive Excel file
+ * @access  Private
+ */
+router.post('/sync-onedrive', excelController.syncOneDrive.bind(excelController));
+
 export default router;

@@ -1,4 +1,6 @@
 import { Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import prisma from '../config/database';
 import * as XLSX from 'xlsx';
 import { countDreKoInDossiers } from '../utils/dre-ko-filter';
@@ -705,6 +707,254 @@ export class ExcelController {
         } catch (error: any) {
             console.error('Full Excel import error:', error);
             res.status(500).json({ error: 'Failed to import full Excel file' });
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ONEDRIVE SYNC — Read Excel file from local OneDrive folder
+    // ═══════════════════════════════════════════════════════════
+
+    /**
+     * GET /api/v1/excel/onedrive-status
+     * Return info about the configured OneDrive Excel file
+     */
+    async getOneDriveStatus(_req: Request, res: Response): Promise<void> {
+        try {
+            const filePath = process.env.ONEDRIVE_EXCEL_PATH || '';
+            if (!filePath) {
+                res.json({ configured: false, error: 'ONEDRIVE_EXCEL_PATH not set in .env' });
+                return;
+            }
+
+            const resolved = path.resolve(filePath);
+            if (!fs.existsSync(resolved)) {
+                res.json({ configured: true, exists: false, path: resolved });
+                return;
+            }
+
+            const stat = fs.statSync(resolved);
+            res.json({
+                configured: true,
+                exists: true,
+                path: resolved,
+                filename: path.basename(resolved),
+                sizeBytes: stat.size,
+                lastModified: stat.mtime.toISOString(),
+            });
+        } catch (error: any) {
+            console.error('OneDrive status error:', error);
+            res.status(500).json({ error: 'Failed to check OneDrive file status' });
+        }
+    }
+
+    /**
+     * POST /api/v1/excel/sync-onedrive
+     * Read the Excel file from the local OneDrive path and import it
+     * Body: { mode?: 'add' | 'replace' }  (defaults to 'replace')
+     */
+    async syncOneDrive(req: Request, res: Response): Promise<void> {
+        try {
+            const filePath = process.env.ONEDRIVE_EXCEL_PATH || '';
+            const mode = (req.body?.mode as string) || 'replace';
+
+            if (!filePath) {
+                res.status(400).json({ error: 'ONEDRIVE_EXCEL_PATH not configured in .env' });
+                return;
+            }
+
+            const resolved = path.resolve(filePath);
+            if (!fs.existsSync(resolved)) {
+                res.status(404).json({ error: `File not found: ${resolved}` });
+                return;
+            }
+
+            console.log(`🔄 OneDrive sync started: ${resolved} (mode: ${mode})`);
+
+            // Read the file from disk
+            const fileBuffer = fs.readFileSync(resolved);
+            const wb = XLSX.read(fileBuffer, { type: 'buffer' });
+            console.log(`📋 Sheets found: ${wb.SheetNames.join(', ')}`);
+
+            // ── 1. Import VUE GLOBAL ──
+            const wsVue = wb.Sheets['VUE GLOBAL'];
+            let secteursImported = 0;
+            if (wsVue) {
+                if (mode === 'replace') {
+                    await prisma.suiviEtude.deleteMany();
+                }
+                const vueRows = XLSX.utils.sheet_to_json<any[]>(wsVue, { header: 1 });
+
+                for (let i = 1; i < vueRows.length; i++) {
+                    const row = vueRows[i] as any[];
+                    if (!row || !row[0] || typeof row[0] !== 'string') continue;
+                    const secteur = normalizeImportedSecteurName(row[0]);
+                    if (!secteur) continue;
+                    if (ExcelController.VUE_GLOBAL_SKIP.some(s => secteur.toUpperCase().includes(s))) continue;
+
+                    const secteurData = {
+                        nbDossiers: parseInt(row[1]) || 0,
+                        dreKo: parseInt(row[2]) || 0,
+                        vtAFaire: parseInt(row[3]) || 0,
+                        aRemonter: parseInt(row[4]) || 0,
+                        retourVt: parseInt(row[5]) || 0,
+                        dossAReprendre: parseInt(row[6]) || 0,
+                        dossAMonter: parseInt(row[7]) || 0,
+                        attInfosCafRef: parseInt(row[8]) || 0,
+                        attDevisOrangeRip: parseInt(row[9]) || 0,
+                        attDevisClient: parseInt(row[10]) || 0,
+                        attTravauxClient: parseInt(row[11]) || 0,
+                        attPv: parseInt(row[12]) || 0,
+                        attDta: parseInt(row[13]) || 0,
+                        attComacCafft: parseInt(row[14]) || 0,
+                        attMajSi: parseInt(row[15]) || 0,
+                        poiEnTravaux: parseInt(row[16]) || 0,
+                        atRetourDoe: parseInt(row[17]) || 0,
+                        etat5: parseInt(row[19]) || 0,
+                        columnConfig: [],
+                    };
+
+                    if (mode === 'add') {
+                        await prisma.suiviEtude.upsert({
+                            where: { secteur },
+                            create: { secteur, ...secteurData },
+                            update: secteurData,
+                        });
+                    } else {
+                        await prisma.suiviEtude.create({
+                            data: { secteur, ...secteurData },
+                        });
+                    }
+                    secteursImported++;
+                }
+
+                // DOSSIER MAIN BE/CHAFF section
+                let beChaffHeaderIdx = -1;
+                const vueRowsAll = XLSX.utils.sheet_to_json<any[]>(wsVue, { header: 1 });
+                for (let i = 0; i < vueRowsAll.length; i++) {
+                    const row = vueRowsAll[i] as any[];
+                    if (row && row[0] && typeof row[0] === 'string' && row[0].includes('DOSSIER MAIN')) {
+                        beChaffHeaderIdx = i;
+                        break;
+                    }
+                }
+                if (beChaffHeaderIdx >= 0) {
+                    for (let i = beChaffHeaderIdx + 1; i < vueRowsAll.length; i++) {
+                        const row = vueRowsAll[i] as any[];
+                        if (!row || row.length < 3) continue;
+                        const be = parseInt(row[0]) || 0;
+                        const chaff = parseInt(row[1]) || 0;
+                        const secteur = normalizeImportedSecteurName(row[2]);
+                        if (!secteur) continue;
+                        try {
+                            await prisma.suiviEtude.update({
+                                where: { secteur },
+                                data: { dossierMainBe: be, dossierMainChaff: chaff },
+                            });
+                        } catch { /* secteur not found */ }
+                    }
+                }
+            }
+
+            // ── 2. Import dossier sheets ──
+            if (mode === 'replace') {
+                await prisma.dossierEtude.deleteMany();
+            }
+            let totalDossiers = 0;
+
+            for (const sheetName of wb.SheetNames) {
+                if (sheetName === 'VUE GLOBAL') continue;
+
+                const ws = wb.Sheets[sheetName];
+                if (!ws) continue;
+
+                const allRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 });
+                if (allRows.length < 2) continue;
+
+                let headerIdx = ExcelController.findHeaderRow(allRows);
+                if (headerIdx < 0 && allRows.length > 1) headerIdx = 1;
+                if (headerIdx < 0) headerIdx = 0;
+
+                const headers = (allRows[headerIdx] as any[]).map((h: any) => h ? String(h).trim() : '');
+                const nonEmptyHeaders = headers.filter(Boolean);
+
+                const secteur = normalizeImportedSecteurName(sheetName);
+                if (!secteur) continue;
+                const existing = await prisma.suiviEtude.findUnique({ where: { secteur } });
+                const excelColumnConfig = nonEmptyHeaders.map((h, idx) => ({
+                    key: h,
+                    label: h,
+                    type: h.toLowerCase().includes('date') ? 'date' : 'text',
+                    required: idx === 0,
+                }));
+                if (!existing) {
+                    await prisma.suiviEtude.create({
+                        data: { secteur, columnConfig: excelColumnConfig },
+                    });
+                } else {
+                    await prisma.suiviEtude.update({
+                        where: { secteur },
+                        data: { columnConfig: excelColumnConfig },
+                    });
+                }
+
+                let sheetImported = 0;
+                for (let i = headerIdx + 1; i < allRows.length; i++) {
+                    const row = allRows[i] as any[];
+                    if (!row || row.every((c: any) => c === null || c === undefined || c === '')) continue;
+
+                    const dossierData: Record<string, any> = {};
+                    for (let j = 0; j < headers.length; j++) {
+                        const header = headers[j];
+                        if (!header) continue;
+                        let value = row[j];
+
+                        const lowerHeader = header.toLowerCase();
+                        if (lowerHeader.includes('date') || header === 'DRE' ||
+                            lowerHeader.includes('relance') || lowerHeader.includes('création')) {
+                            if (typeof value === 'number') {
+                                try {
+                                    const d = XLSX.SSF.parse_date_code(value);
+                                    if (d) {
+                                        const dd = String(d.d).padStart(2, '0');
+                                        const mm = String(d.m).padStart(2, '0');
+                                        value = `${dd}/${mm}/${d.y}`;
+                                    }
+                                } catch { /* not a date */ }
+                            }
+                        }
+
+                        if (value === undefined || value === null || String(value).trim() === '') {
+                            dossierData[header] = '';
+                        } else {
+                            dossierData[header] = String(value);
+                        }
+                    }
+
+                    if (Object.keys(dossierData).length > 0) {
+                        await prisma.dossierEtude.create({
+                            data: { secteur, data: dossierData },
+                        });
+                        sheetImported++;
+                    }
+                }
+                totalDossiers += sheetImported;
+                await recalcSectorCounts(secteur);
+            }
+
+            const stat = fs.statSync(resolved);
+            console.log(`✅ OneDrive sync complete: ${secteursImported} secteurs, ${totalDossiers} dossiers`);
+
+            res.json({
+                message: `Sync OneDrive terminée (${mode}): ${secteursImported} secteurs, ${totalDossiers} dossiers`,
+                secteursImported,
+                totalDossiers,
+                mode,
+                filename: path.basename(resolved),
+                fileLastModified: stat.mtime.toISOString(),
+            });
+        } catch (error: any) {
+            console.error('OneDrive sync error:', error);
+            res.status(500).json({ error: 'Failed to sync from OneDrive Excel file' });
         }
     }
 }

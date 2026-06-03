@@ -12,6 +12,14 @@ import './AdminDashboardPage.css';
 
 const GLOBAL_DOSSIER_SEARCH_LIMIT = 500;
 
+// Sectors excluded from the RCC dashboard (BEIN section + non-data sheets)
+const EXCLUDED_SECTORS = new Set(['BEIN', 'BEIN A PAYER', 'PRESENTATION', 'NULL']);
+const isExcludedSector = (secteur: string | null | undefined): boolean => {
+    if (!secteur) return true;
+    const normalized = secteur.replace(/[\u00A0\u200B-\u200D\uFEFF]/g, ' ').trim().toUpperCase();
+    return normalized === '' || EXCLUDED_SECTORS.has(normalized);
+};
+
 function dossierDataPreview(data: Record<string, unknown> | undefined, maxLen = 160): string {
     if (!data || typeof data !== 'object') return '—';
     const parts: string[] = [];
@@ -108,6 +116,9 @@ const AdminDashboardPage: React.FC = () => {
     const [globalSearchLoading, setGlobalSearchLoading] = useState(false);
     const [openingDreKoSecteur, setOpeningDreKoSecteur] = useState<string | null>(null);
 
+    // OneDrive sync
+    const [syncing, setSyncing] = useState(false);
+
     const handleExportFull = async () => {
         setExporting(true);
         try {
@@ -151,12 +162,73 @@ const AdminDashboardPage: React.FC = () => {
         if (importFileRef.current) importFileRef.current.value = '';
     };
 
-    // Filter rows by allowed secteurs
+    const handleSyncOneDrive = async () => {
+        if (!window.confirm('Synchroniser les données depuis le fichier Excel OneDrive ?\nCela remplacera toutes les données actuelles.')) return;
+        setSyncing(true);
+        try {
+            const result = await suiviEtudeService.syncOneDrive('replace');
+            alert(`${t('dashboard.sync_success')}: ${result.secteursImported} secteurs, ${result.totalDossiers} dossiers\n${t('dashboard.sync_file')}: ${result.filename}\n${t('dashboard.sync_last_modified')}: ${new Date(result.fileLastModified).toLocaleString()}`);
+            fetchData();
+        } catch (error: any) {
+            const msg = error.response?.data?.error || t('dashboard.sync_failed');
+            alert(msg);
+        } finally {
+            setSyncing(false);
+        }
+    };
+
+    // Exclude BEIN / BEIN A PAYER, PRESENTATION, null/empty secteurs from the RCC dashboard
+    const rccRows = useMemo(
+        () => rows.filter((r) => !isExcludedSector(r.secteur)),
+        [rows],
+    );
+
     const filteredRows = useMemo(
         () =>
-            allowedSecteurs.length > 0 ? rows.filter((r) => allowedSecteurs.includes(r.secteur)) : rows,
-        [rows, allowedSecteurs],
+            allowedSecteurs.length > 0 ? rccRows.filter((r) => allowedSecteurs.includes(r.secteur)) : rccRows,
+        [rccRows, allowedSecteurs],
     );
+
+    // Recompute totals excluding BEIN sectors so RCC stats are accurate
+    const rccTotals = useMemo<SuiviEtudeTotals | null>(() => {
+        if (!totals) return null;
+        const t: SuiviEtudeTotals = {
+            nbDossiers: 0, dreKo: 0, vtAFaire: 0, aRemonter: 0, retourVt: 0,
+            dossAReprendre: 0, dossAMonter: 0, attInfosCafRef: 0, attDevisOrangeRip: 0,
+            attDevisClient: 0, attTravauxClient: 0, attPv: 0, attDta: 0,
+            attComacCafft: 0, attMajSi: 0, poiEnTravaux: 0, atRetourDoe: 0,
+            recolAFaire: 0, etat5: 0, dossierMainBe: 0, dossierMainChaff: 0,
+        };
+        for (const row of rccRows) {
+            t.nbDossiers += row.nbDossiers;
+            t.dreKo += row.dreKo;
+            t.vtAFaire += row.vtAFaire;
+            t.aRemonter += row.aRemonter;
+            t.retourVt += row.retourVt;
+            t.dossAReprendre += row.dossAReprendre;
+            t.dossAMonter += row.dossAMonter;
+            t.attInfosCafRef += row.attInfosCafRef;
+            t.attDevisOrangeRip += row.attDevisOrangeRip;
+            t.attDevisClient += row.attDevisClient;
+            t.attTravauxClient += row.attTravauxClient;
+            t.attPv += row.attPv;
+            t.attDta += row.attDta;
+            t.attComacCafft += row.attComacCafft;
+            t.attMajSi += row.attMajSi;
+            t.poiEnTravaux += row.poiEnTravaux;
+            t.atRetourDoe += row.atRetourDoe;
+            t.recolAFaire += row.recolAFaire;
+            t.etat5 += row.etat5;
+            t.dossierMainBe += row.dossierMainBe;
+            t.dossierMainChaff += row.dossierMainChaff;
+        }
+        return t;
+    }, [totals, rccRows]);
+
+    const rccTauxNonConformite = useMemo(() => {
+        if (!rccTotals || rccTotals.nbDossiers === 0) return '0';
+        return ((rccTotals.dreKo / rccTotals.nbDossiers) * 100).toFixed(1);
+    }, [rccTotals]);
 
     const globalSearchMoreThanLimit =
         debouncedGlobalSearch && globalSearchHits.length >= GLOBAL_DOSSIER_SEARCH_LIMIT;
@@ -339,6 +411,9 @@ const AdminDashboardPage: React.FC = () => {
                         style={{ display: 'none' }}
                         onChange={handleFileSelected}
                     />
+                    <button className="btn-sync-onedrive" onClick={handleSyncOneDrive} disabled={syncing}>
+                        {syncing ? t('dashboard.syncing') : t('dashboard.sync_onedrive')}
+                    </button>
                     {isAdmin && (
                         <button className="btn-add" onClick={() => navigate('/admin/users')}>
                             {t('dashboard.user_mgmt')}
@@ -356,23 +431,23 @@ const AdminDashboardPage: React.FC = () => {
             </div>
 
             {/* Stats Cards */}
-            {totals && (
+            {rccTotals && (
                 <div className="stats-row">
                     <div className="stat-highlight total">
                         <span className="stat-label">{t('dashboard.total_dossiers')}</span>
-                        <span className="stat-number">{totals.nbDossiers}</span>
+                        <span className="stat-number">{rccTotals.nbDossiers}</span>
                     </div>
                     <div className="stat-highlight taux">
                         <span className="stat-label">{t('dashboard.taux_nc')}</span>
-                        <span className="stat-number">{tauxNonConformite}%</span>
+                        <span className="stat-number">{rccTauxNonConformite}%</span>
                     </div>
                     <div className="stat-highlight dossier-be">
                         <span className="stat-label">{t('dashboard.dossier_be')}</span>
-                        <span className="stat-number">{totals.dossierMainBe}</span>
+                        <span className="stat-number">{rccTotals.dossierMainBe}</span>
                     </div>
                     <div className="stat-highlight dossier-chaff">
                         <span className="stat-label">{t('dashboard.dossier_chaff')}</span>
-                        <span className="stat-number">{totals.dossierMainChaff}</span>
+                        <span className="stat-number">{rccTotals.dossierMainChaff}</span>
                     </div>
                 </div>
             )}
@@ -503,13 +578,13 @@ const AdminDashboardPage: React.FC = () => {
                                         </tr>
                                     ))}
                                     {/* GLOBAL Totals Row */}
-                                    {totals && (
+                                    {rccTotals && (
                                         <tr className="totals-row">
                                             <td>{t('dashboard.global')}</td>
                                             {NUMERIC_FIELDS.map((field) => (
                                                 <td key={field.key}>
                                                     <span className="cell-value">
-                                                        {totals[field.key as keyof SuiviEtudeTotals]}
+                                                        {rccTotals[field.key as keyof SuiviEtudeTotals]}
                                                     </span>
                                                 </td>
                                             ))}
@@ -524,7 +599,7 @@ const AdminDashboardPage: React.FC = () => {
             </div>
 
             {/* DOSSIER MAIN Breakdown Table */}
-            {rows.length > 0 && (
+            {filteredRows.length > 0 && (
                 <div className="dossier-main-section">
                     <h2>{t('dashboard.dossier_repartition')}</h2>
                     <div className="dossier-table-wrapper">
@@ -537,7 +612,9 @@ const AdminDashboardPage: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {rows.map((row) => (
+                                {filteredRows
+                                    .filter((row) => row.dossierMainBe > 0 || row.dossierMainChaff > 0)
+                                    .map((row) => (
                                     <tr key={row.id}>
                                         <td>{row.dossierMainBe}</td>
                                         <td>{row.dossierMainChaff}</td>
@@ -545,11 +622,11 @@ const AdminDashboardPage: React.FC = () => {
                                     </tr>
                                 ))}
                             </tbody>
-                            {totals && (
+                            {rccTotals && (
                                 <tfoot>
                                     <tr>
-                                        <td>{totals.dossierMainBe}</td>
-                                        <td>{totals.dossierMainChaff}</td>
+                                        <td>{rccTotals.dossierMainBe}</td>
+                                        <td>{rccTotals.dossierMainChaff}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
