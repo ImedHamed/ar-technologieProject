@@ -867,12 +867,12 @@ const SecteurDetailPage: React.FC = () => {
                         </span>
                         {Number.isFinite(vueDreKoFromDashboard) &&
                             vueDreKoFromDashboard !== dossiersAfterMetric.length && (
-                            <p className="secteur-metric-banner-hint">
-                                {t('sector.metric_dre_ko_vue_hint')
-                                    .replace('{{V}}', String(vueDreKoFromDashboard))
-                                    .replace('{{F}}', String(dossiersAfterMetric.length))}
-                            </p>
-                        )}
+                                <p className="secteur-metric-banner-hint">
+                                    {t('sector.metric_dre_ko_vue_hint')
+                                        .replace('{{V}}', String(vueDreKoFromDashboard))
+                                        .replace('{{F}}', String(dossiersAfterMetric.length))}
+                                </p>
+                            )}
                     </div>
                     <button type="button" className="btn-clear-metric" onClick={clearVueMetric}>
                         {t('sector.clear_metric_filter')}
@@ -1219,3 +1219,4 @@ const SecteurDetailPage: React.FC = () => {
 };
 
 export default SecteurDetailPage;
+//test
