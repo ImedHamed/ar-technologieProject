@@ -92,11 +92,11 @@ const defaultFormData: Record<string, string | number> = {
 
 const AdminDashboardPage: React.FC = () => {
     const navigate = useNavigate();
-    const { isAdmin, canEdit, allowedSecteurs, logout, user } = useAuth();
+    const { isAdmin, canEdit, allowedSecteurs, logout } = useAuth();
     const { t } = useLanguage();
     const [rows, setRows] = useState<SuiviEtudeRow[]>([]);
     const [totals, setTotals] = useState<SuiviEtudeTotals | null>(null);
-    const [tauxNonConformite, setTauxNonConformite] = useState('0');
+    const [, setTauxNonConformite] = useState('0');
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingRow, setEditingRow] = useState<SuiviEtudeRow | null>(null);
