@@ -302,6 +302,7 @@ const SecteurDetailPage: React.FC = () => {
     const [pagination, setPagination] = useState({ page: 1, limit: SECTEUR_DOSSIER_FETCH_LIMIT, total: 0, totalPages: 1 });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
 
     // Dossier CRUD modal
     const [showDossierModal, setShowDossierModal] = useState(false);
@@ -506,6 +507,12 @@ const SecteurDetailPage: React.FC = () => {
         }
     }, [sectorName]);
 
+    // Debounce: wait 500ms after the user stops typing before firing the API call
+    useEffect(() => {
+        const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 500);
+        return () => window.clearTimeout(timer);
+    }, [search]);
+
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
@@ -513,7 +520,7 @@ const SecteurDetailPage: React.FC = () => {
                 secteur: sectorName,
                 page: 1,
                 limit: SECTEUR_DOSSIER_FETCH_LIMIT,
-                search: search || undefined,
+                search: debouncedSearch || undefined,
             });
             setDossiers(data.dossiers);
             setColumns(data.columnConfig);
@@ -523,7 +530,7 @@ const SecteurDetailPage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    }, [sectorName, search]);
+    }, [sectorName, debouncedSearch]);
 
     useEffect(() => {
         fetchSectorId();
